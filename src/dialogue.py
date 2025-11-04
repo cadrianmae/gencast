@@ -129,7 +129,7 @@ def generate_dialogue(
 
         if RICH_AVAILABLE:
             console = Console(force_terminal=True)
-            with Live("", refresh_per_second=4, console=console) as live:
+            with Live("", console=console) as live:
                 stream = client.chat.completions.create(
                     model=model,
                     messages=[

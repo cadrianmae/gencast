@@ -217,8 +217,7 @@ def mix_audio_segments(
             TaskProgressColumn(),
             TimeElapsedColumn(),
             TimeRemainingColumn(),
-            console=console,
-            refresh_per_second=4  # Reduce refresh rate to minimize flicker
+            console=console
         ) as progress:
             task = progress.add_task(
                 f"Generating audio (spatial: {spatial_separation})",
@@ -319,8 +318,7 @@ def generate_srt_with_whisper(audio_path: str, output_path: str) -> str:
                 SpinnerColumn(),
                 TextColumn("[bold cyan]{task.description}"),
                 TimeElapsedColumn(),
-                console=console,
-                refresh_per_second=4
+                console=console
             ) as progress:
                 task = progress.add_task(
                     f"Transcribing with Whisper ({file_size_mb:.1f} MB)...",

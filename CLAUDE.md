@@ -215,7 +215,6 @@ else:
 - Audio generation: `max_preview = max(20, terminal_width - 74)`
 - Dialogue streaming: `max_line_length = max(20, console.width - len(prefix) - 5)`
 - Uses `Console(force_terminal=True)` for consistent display
-- Refresh rate reduced to 4 Hz to minimize flicker
 - No emojis in progress displays to avoid width calculation issues
 
 ## API Usage & Costs
