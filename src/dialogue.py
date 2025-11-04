@@ -152,6 +152,41 @@ def load_audience_modifier(audience: str = "general") -> str:
     return ""
 
 
+def calculate_max_tokens(input_length: int, scale_factor: float = 2.0) -> int:
+    """
+    Calculate appropriate max_tokens based on input content length.
+
+    Uses a configurable scaling factor to generate proportional dialogue output.
+    Default scale_factor=2.0 means roughly 2 tokens output per 1 char input.
+
+    Example ranges with default scale_factor=2.0:
+    - Small docs (< 1000 chars): 2000-4000 tokens
+    - Medium docs (1000-5000 chars): 4000-10000 tokens
+    - Large docs (5000-8000 chars): 10000-16000 tokens
+    - Very large docs (> 8000 chars): 16000 tokens (capped)
+
+    Args:
+        input_length: Character count of input text
+        scale_factor: Tokens per character multiplier (default: 2.0)
+                     Higher = longer dialogue output
+
+    Returns:
+        Appropriate max_tokens value
+    """
+    # Base minimum for very short inputs
+    min_tokens = 2000
+
+    # Scale factor: adjustable tokens output per char input
+    # (accounts for dialogue expansion from source material)
+    scaled_tokens = int(input_length * scale_factor)
+
+    # Apply floor and ceiling
+    max_tokens = max(min_tokens, scaled_tokens)
+    max_tokens = min(max_tokens, 16000)  # Cap at model limits
+
+    return max_tokens
+
+
 def generate_dialogue(
     text: str,
     model: str = "gpt-4o-mini",
@@ -186,11 +221,15 @@ def generate_dialogue(
     audience_modifier = load_audience_modifier(audience)
     full_prompt = system_prompt + audience_modifier
 
+    # Calculate appropriate max_tokens based on input length
+    max_tokens = calculate_max_tokens(len(text))
+
     try:
         client = OpenAI(api_key=api_key)
 
         print(f"🎭 Generating dialogue with {model}...")
         print(f"   Style: {style} | Audience: {audience}")
+        print(f"   Input: {len(text)} chars → Max tokens: {max_tokens}")
 
         # Stream the dialogue generation with live preview
         dialogue_chunks = []
@@ -206,7 +245,7 @@ def generate_dialogue(
                         {"role": "user", "content": f"Convert this content into a podcast dialogue:\n\n{text}"}
                     ],
                     temperature=0.8,
-                    max_tokens=4000,
+                    max_tokens=max_tokens,
                     stream=True
                 )
 
@@ -239,7 +278,7 @@ def generate_dialogue(
                     {"role": "user", "content": f"Convert this content into a podcast dialogue:\n\n{text}"}
                 ],
                 temperature=0.8,
-                max_tokens=4000,
+                max_tokens=max_tokens,
                 stream=True
             )
 
