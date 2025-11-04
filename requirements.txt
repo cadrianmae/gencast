@@ -1,0 +1,6 @@
+openai>=1.0.0
+pydub>=0.25.1
+mistralai>=1.0.0
+pypdf>=3.0.0
+audioop-lts>=0.2.0  # Required for Python 3.13+ compatibility
+rich>=13.0.0  # Rich progress bars and live displays

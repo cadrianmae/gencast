@@ -1,0 +1,10 @@
+Target Audience: Complete beginners with no prior knowledge (ELI5 style).
+
+- Use extremely simple, conversational language
+- Explain EVERY concept from first principles
+- Use lots of analogies, metaphors, and real-world examples
+- Break complex ideas into the smallest possible pieces
+- Repeat key concepts in different ways
+- Avoid jargon entirely, or explain it immediately in simple terms
+- Make connections to everyday experiences everyone understands
+- Be patient and encouraging, celebrate small steps of understanding

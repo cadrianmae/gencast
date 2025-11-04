@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "podcast-ai"
+version = "0.1.0"
+description = "Generate conversational podcasts from documents using AI (NotebookLM alternative)"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Mae Capacite", email = "cadrianmae@users.noreply.github.com"}
+]
+keywords = ["podcast", "ai", "tts", "openai", "whisper", "notebooklm", "education"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Education",
+]
+
+dependencies = [
+    "openai>=1.0.0",
+    "pydub>=0.25.1",
+    "mistralai>=1.0.0",
+    "pypdf>=3.0.0",
+    "audioop-lts>=0.2.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+gencast = "podcast_ai:main"
+
+[tool.setuptools]
+py-modules = ["podcast_ai"]
+
+[project.urls]
+Homepage = "https://github.com/cadrianmae/podcast-ai"
+Repository = "https://github.com/cadrianmae/podcast-ai"
+Issues = "https://github.com/cadrianmae/podcast-ai/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "podcast_ai.py"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312', 'py313']
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"

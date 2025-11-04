@@ -1,0 +1,8 @@
+Target Audience: Technical/Advanced audience with domain knowledge.
+
+- Use technical terminology appropriately without over-explaining basics
+- Dive deeper into implementation details and technical nuances
+- Discuss edge cases, trade-offs, and advanced concepts
+- Assume the audience has foundational knowledge
+- Reference industry standards and best practices
+- Include technical details that would interest experts

@@ -1,0 +1,6 @@
+Target Audience: General audience with varied backgrounds.
+
+- Use clear, accessible language
+- Explain technical terms when they appear
+- Balance depth with clarity
+- Assume curiosity but not specialized knowledge

@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# API Keys
+.env
+
+# Generated audio and test outputs
+*.mp3
+*.wav
+*.srt
+output/
+test_*.txt
+test_*.md
+test_*.mp3
+test_*.srt
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
