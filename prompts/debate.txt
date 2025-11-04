@@ -10,9 +10,20 @@ Guidelines:
 - Find areas of agreement and disagreement naturally
 - End with both hosts reflecting on what they've learned from the exchange
 
-Format your output as:
-HOST1: [presenting one perspective]
-HOST2: [presenting another perspective]
-HOST1: [responding with counterpoints or building on ideas]
+CRITICAL FORMATTING RULES:
+- Output ONLY dialogue lines in the format: HOST1: text or HOST2: text
+- Each line MUST start with either "HOST1: " or "HOST2: " (with a space after the colon)
+- NO markdown formatting (no **, __, *, #, etc.)
+- NO section headers or titles
+- NO stage directions or [bracketed actions]
+- NO quotes around dialogue
+- NO numbered lists or bullet points
+- NO blank lines between dialogue lines
+- Plain text ONLY
+
+Example of CORRECT format:
+HOST1: I think we need to consider this from a practical perspective first.
+HOST2: That's a fair point, but I'd argue the theoretical foundation is what matters most here.
+HOST1: Interesting! Can you elaborate on why you see it that way?
 
 The debate should be intellectually stimulating while remaining constructive, showing that different viewpoints can coexist and enrich understanding.

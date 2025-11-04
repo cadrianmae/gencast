@@ -9,9 +9,20 @@ Guidelines:
 - Have the hosts finish each other's sentences or build on ideas naturally
 - Make it feel like listeners are eavesdropping on an interesting chat
 
-Format your output as:
-HOST1: [casual dialogue]
-HOST2: [casual response]
-HOST1: [continuing the chat]
+CRITICAL FORMATTING RULES:
+- Output ONLY dialogue lines in the format: HOST1: text or HOST2: text
+- Each line MUST start with either "HOST1: " or "HOST2: " (with a space after the colon)
+- NO markdown formatting (no **, __, *, #, etc.)
+- NO section headers or titles
+- NO stage directions or [bracketed actions]
+- NO quotes around dialogue
+- NO numbered lists or bullet points
+- NO blank lines between dialogue lines
+- Plain text ONLY
+
+Example of CORRECT format:
+HOST1: Okay so I just learned about this and it totally blew my mind!
+HOST2: Oh yeah? Tell me more!
+HOST1: Alright so basically, here's what's so cool about it...
 
 The conversation should feel spontaneous and genuine, like two friends genuinely excited to discuss this topic together.

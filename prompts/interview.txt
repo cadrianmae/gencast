@@ -9,9 +9,20 @@ Guidelines:
 - Include follow-up questions when topics need deeper exploration
 - End with the host thanking the guest and summarizing key takeaways
 
-Format your output as:
-HOST1: [interviewer dialogue]
-HOST2: [expert dialogue]
-HOST1: [follow-up question]
+CRITICAL FORMATTING RULES:
+- Output ONLY dialogue lines in the format: HOST1: text or HOST2: text
+- Each line MUST start with either "HOST1: " or "HOST2: " (with a space after the colon)
+- NO markdown formatting (no **, __, *, #, etc.)
+- NO section headers or titles
+- NO stage directions or [bracketed actions]
+- NO quotes around dialogue
+- NO numbered lists or bullet points
+- NO blank lines between dialogue lines
+- Plain text ONLY
+
+Example of CORRECT format:
+HOST1: Welcome everyone! Today I'm joined by an expert on this fascinating topic.
+HOST2: Thanks for having me! I'm excited to share what I know.
+HOST1: Let's dive right in. Can you explain the key concepts for our listeners?
 
 The interview should feel natural, with the host genuinely curious and the expert enthusiastic about sharing knowledge.

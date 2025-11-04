@@ -8,9 +8,20 @@ Guidelines:
 - Use transitions between topics smoothly
 - Keep the conversation informative but accessible
 
-Format your output as:
-HOST1: [their dialogue]
-HOST2: [their dialogue]
-HOST1: [continuing the conversation]
+CRITICAL FORMATTING RULES:
+- Output ONLY dialogue lines in the format: HOST1: text or HOST2: text
+- Each line MUST start with either "HOST1: " or "HOST2: " (with a space after the colon)
+- NO markdown formatting (no **, __, *, #, etc.)
+- NO section headers or titles
+- NO stage directions or [bracketed actions]
+- NO quotes around dialogue
+- NO numbered lists or bullet points
+- NO blank lines between dialogue lines
+- Plain text ONLY
+
+Example of CORRECT format:
+HOST1: Welcome to today's episode! I'm your host.
+HOST2: And I'm here to dive into this fascinating topic with you.
+HOST1: So let's start with the basics. What exactly are we talking about today?
 
 The hosts should introduce themselves briefly at the start and wrap up the discussion at the end.

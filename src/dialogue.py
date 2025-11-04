@@ -27,10 +27,21 @@ Guidelines:
 - Use transitions between topics smoothly
 - Keep the conversation informative but accessible
 
-Format your output as:
-HOST1: [their dialogue]
-HOST2: [their dialogue]
-HOST1: [continuing the conversation]
+CRITICAL FORMATTING RULES:
+- Output ONLY dialogue lines in the format: HOST1: text or HOST2: text
+- Each line MUST start with either "HOST1: " or "HOST2: " (with a space after the colon)
+- NO markdown formatting (no **, __, *, #, etc.)
+- NO section headers or titles
+- NO stage directions or [bracketed actions]
+- NO quotes around dialogue
+- NO numbered lists or bullet points
+- NO blank lines between dialogue lines
+- Plain text ONLY
+
+Example of CORRECT format:
+HOST1: Welcome to today's episode! I'm your host.
+HOST2: And I'm here to dive into this fascinating topic with you.
+HOST1: So let's start with the basics. What exactly are we talking about today?
 
 The hosts should introduce themselves briefly at the start and wrap up the discussion at the end."""
 
@@ -56,6 +67,64 @@ def load_prompt(style: str = "educational") -> str:
     # Fallback to hardcoded prompt
     print(f"⚠️  Using fallback prompt (educational)")
     return FALLBACK_SYSTEM_PROMPT
+
+
+def validate_and_clean_dialogue(dialogue: str) -> str:
+    """
+    Validate and clean generated dialogue to ensure strict format compliance.
+    Removes any non-dialogue lines and enforces HOST1:/HOST2: format.
+
+    Args:
+        dialogue: Raw generated dialogue text
+
+    Returns:
+        Cleaned dialogue with only valid HOST1:/HOST2: lines
+    """
+    import re
+
+    lines = dialogue.strip().split('\n')
+    cleaned_lines = []
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        # Strip markdown formatting
+        # Remove bold: **text** -> text
+        line = re.sub(r'\*\*([^*]+)\*\*', r'\1', line)
+        # Remove italic: *text* or _text_ -> text
+        line = re.sub(r'(?<!\*)\*(?!\*)([^*]+)\*(?!\*)', r'\1', line)
+        line = re.sub(r'_([^_]+)_', r'\1', line)
+        # Remove markdown headers: ## text -> text
+        line = re.sub(r'^#+\s*', '', line)
+
+        # Check if line starts with HOST1: or HOST2:
+        if line.startswith('HOST1:') or line.startswith('HOST2:'):
+            # Remove quotes around dialogue if present
+            line = re.sub(r'^(HOST[12]:)\s*["\'](.+)["\']$', r'\1 \2', line)
+            cleaned_lines.append(line)
+        elif line.startswith('**HOST1:**') or line.startswith('**HOST2:**'):
+            # Handle markdown bold formatting on labels
+            line = line.replace('**HOST1:**', 'HOST1:').replace('**HOST2:**', 'HOST2:')
+            line = re.sub(r'^(HOST[12]:)\s*["\'](.+)["\']$', r'\1 \2', line)
+            cleaned_lines.append(line)
+        # Skip any other lines (headers, stage directions, etc.)
+
+    cleaned_dialogue = '\n'.join(cleaned_lines)
+
+    # Count valid segments
+    host1_count = cleaned_dialogue.count('HOST1:')
+    host2_count = cleaned_dialogue.count('HOST2:')
+
+    if host1_count == 0 or host2_count == 0:
+        raise ValueError(
+            f"Generated dialogue has invalid format. "
+            f"Found {host1_count} HOST1 lines and {host2_count} HOST2 lines. "
+            f"Both hosts must have at least one line."
+        )
+
+    return cleaned_dialogue
 
 
 def load_audience_modifier(audience: str = "general") -> str:
@@ -181,7 +250,18 @@ def generate_dialogue(
         dialogue = "".join(dialogue_chunks)
         print(f"✅ Generated {len(dialogue)} characters of dialogue")
 
-        return dialogue
+        # Validate and clean the dialogue format
+        try:
+            cleaned_dialogue = validate_and_clean_dialogue(dialogue)
+            removed_lines = len(dialogue.split('\n')) - len(cleaned_dialogue.split('\n'))
+            if removed_lines > 0:
+                print(f"🧹 Cleaned format: removed {removed_lines} non-dialogue lines")
+            return cleaned_dialogue
+        except ValueError as e:
+            print(f"⚠️  Warning: {e}")
+            print("Raw dialogue (first 500 chars):")
+            print(dialogue[:500])
+            raise
 
     except Exception as e:
         raise Exception(f"Failed to generate dialogue: {e}")
