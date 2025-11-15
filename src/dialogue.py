@@ -26,6 +26,10 @@ Guidelines:
 - Break down complex topics into digestible segments
 - Use transitions between topics smoothly
 - Keep the conversation informative but accessible
+- Cover ALL major points from the source material thoroughly
+- Explore each concept in detail with examples and explanations
+- Create a comprehensive discussion that does justice to the content
+- Aim for depth over brevity - take time to fully explain ideas
 
 CRITICAL FORMATTING RULES:
 - Output ONLY dialogue lines in the format: HOST1: text or HOST2: text
@@ -191,7 +195,8 @@ def generate_dialogue(
     text: str,
     model: str = "gpt-4o-mini",
     style: str = "educational",
-    audience: str = "general"
+    audience: str = "general",
+    custom_instructions: str = None
 ) -> str:
     """
     Generate conversational dialogue from document text using OpenAI.
@@ -201,6 +206,7 @@ def generate_dialogue(
         model: OpenAI model to use (default: gpt-4o-mini)
         style: Podcast style (educational, interview, casual, debate)
         audience: Target audience (general, technical, academic, beginner)
+        custom_instructions: Additional custom instructions to append to the prompt
 
     Returns:
         Formatted dialogue string with HOST1:/HOST2: labels
@@ -221,6 +227,10 @@ def generate_dialogue(
     audience_modifier = load_audience_modifier(audience)
     full_prompt = system_prompt + audience_modifier
 
+    # Add custom instructions if provided
+    if custom_instructions:
+        full_prompt += f"\n\nAdditional instructions: {custom_instructions}"
+
     # Calculate appropriate max_tokens based on input length
     max_tokens = calculate_max_tokens(len(text))
 
@@ -229,6 +239,8 @@ def generate_dialogue(
 
         print(f"🎭 Generating dialogue with {model}...")
         print(f"   Style: {style} | Audience: {audience}")
+        if custom_instructions:
+            print(f"   Custom: {custom_instructions[:60]}{'...' if len(custom_instructions) > 60 else ''}")
         print(f"   Input: {len(text)} chars → Max tokens: {max_tokens}")
 
         # Stream the dialogue generation with live preview

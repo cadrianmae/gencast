@@ -110,6 +110,12 @@ Default voices: HOST1=nova, HOST2=echo
         help='Target audience (default: general)'
     )
 
+    parser.add_argument(
+        '--instructions',
+        type=str,
+        help='Additional instructions for the podcast generation (e.g., "focus on practical examples", "emphasize challenges", "keep it light and humorous")'
+    )
+
     args = parser.parse_args()
 
     # Header
@@ -138,7 +144,8 @@ Default voices: HOST1=nova, HOST2=echo
             text,
             model=args.model,
             style=args.style,
-            audience=args.audience
+            audience=args.audience,
+            custom_instructions=args.instructions
         )
 
         # Optionally save dialogue

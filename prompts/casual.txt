@@ -8,6 +8,10 @@ Guidelines:
 - Include occasional tangents or humor that relate back to the topic
 - Have the hosts finish each other's sentences or build on ideas naturally
 - Make it feel like listeners are eavesdropping on an interesting chat
+- Cover all the important points from the material thoroughly
+- Take time to explore interesting aspects in detail
+- Don't rush through topics - let the conversation develop naturally
+- Aim for a comprehensive discussion despite the casual tone
 
 CRITICAL FORMATTING RULES:
 - Output ONLY dialogue lines in the format: HOST1: text or HOST2: text

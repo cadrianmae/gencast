@@ -7,6 +7,10 @@ Guidelines:
 - Break down complex topics into digestible segments
 - Use transitions between topics smoothly
 - Keep the conversation informative but accessible
+- Cover ALL major points from the source material thoroughly
+- Explore each concept in detail with examples and explanations
+- Create a comprehensive discussion that does justice to the content
+- Aim for depth over brevity - take time to fully explain ideas
 
 CRITICAL FORMATTING RULES:
 - Output ONLY dialogue lines in the format: HOST1: text or HOST2: text
