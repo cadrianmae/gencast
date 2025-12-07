@@ -109,8 +109,8 @@ Default voices: HOST1=nova, HOST2=echo
 
     parser.add_argument(
         '--model',
-        default='gpt-5-mini',
-        help='OpenAI model for dialogue generation (default: gpt-5-mini)'
+        default='anthropic/claude-sonnet-4.5',
+        help='AI model for dialogue generation (default: anthropic/claude-sonnet-4.5)'
     )
 
     parser.add_argument(

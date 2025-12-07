@@ -80,7 +80,7 @@ def calculate_plan_max_tokens(input_length: int, unlock_limit: bool = False) -> 
 
 def generate_plan(
     text: str,
-    model: str = "gpt-5-mini",
+    model: str = "anthropic/claude-sonnet-4.5",
     audience: str = "general",
     custom_instructions: Optional[str] = None,
     unlock_token_limit: bool = False,
