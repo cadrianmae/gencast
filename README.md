@@ -1,4 +1,4 @@
-# Podcast AI (gencast)
+# gencast
 
 🎙️ Generate conversational podcasts from documents using AI - A cost-effective, customisable NotebookLM alternative
 
@@ -102,21 +102,69 @@ gencast doc.md --spatial-separation 0.6
 gencast doc.md --save-dialogue
 ```
 
-### Advanced
+### Multi-Provider Support
 
 ```bash
-# Use different GPT model
-gencast doc.md --model gpt-4
+# OpenAI models (default)
+gencast doc.md --model gpt-4o-mini
+gencast doc.md --model gpt-4o
 
-# All options
+# Anthropic Claude models
+gencast doc.md --model anthropic/claude-sonnet-4.5
+gencast doc.md --model anthropic/claude-opus-4.5
+
+# Supports 100+ models via LiteLLM
+# See https://docs.litellm.ai/docs/providers for full list
+```
+
+Set up API keys for your chosen provider:
+
+```bash
+# OpenAI (required for audio - TTS and Whisper)
+export OPENAI_API_KEY="sk-..."
+
+# Anthropic (optional, for Claude models)
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# Mistral (optional, for PDF processing)
+export MISTRAL_API_KEY="..."
+```
+
+### Planning Feature
+
+```bash
+# Generate comprehensive podcast plan before dialogue
+gencast doc.md --with-planning
+
+# Save the plan for review
+gencast doc.md --with-planning --save-plan
+
+# Combine with other options
+gencast doc.md --with-planning --save-plan --save-dialogue \
+  --style interview --audience technical
+```
+
+The planning feature creates a structured outline ensuring thorough coverage of all source material before generating the dialogue.
+
+### Advanced Options
+
+```bash
+# Combine all features
 gencast input.md \
   -o output.mp3 \
+  --model anthropic/claude-sonnet-4.5 \
   --style interview \
   --audience technical \
   --host1-voice nova \
   --host2-voice echo \
   --spatial-separation 0.4 \
+  --with-planning \
+  --save-plan \
   --save-dialogue
+
+# Verbosity control
+gencast doc.md --minimal  # Minimal output
+gencast doc.md --silent   # Silent mode (errors only)
 ```
 
 ## Cost
@@ -138,17 +186,20 @@ Typical cost per 3-minute podcast (~1500 words):
 ## Architecture
 
 ```
-podcast-ai/
-├── podcast_ai.py          # Main CLI entry point
+gencast/
+├── gencast.py             # Main CLI entry point
 ├── src/
-│   ├── dialogue.py        # GPT-4 dialogue generation with streaming
-│   ├── audio.py           # TTS + spatial audio + Whisper SRT
-│   └── utils.py           # Document reading (MD, TXT, PDF)
+│   ├── dialogue.py        # Multi-provider dialogue (LiteLLM)
+│   ├── planning.py        # Podcast planning (LiteLLM)
+│   ├── audio.py           # TTS + spatial audio + Whisper (OpenAI)
+│   ├── utils.py           # Document reading (MD, TXT, PDF)
+│   └── logger.py          # Logging with verbosity levels
 ├── prompts/               # Podcast style prompts
 │   ├── educational.txt
 │   ├── interview.txt
 │   ├── casual.txt
-│   └── debate.txt
+│   ├── debate.txt
+│   └── planning.txt
 ├── audiences/             # Audience modifiers
 │   ├── general.txt
 │   ├── technical.txt
@@ -158,6 +209,17 @@ podcast-ai/
 ├── requirements.txt
 └── README.md
 ```
+
+### Hybrid AI Provider Architecture
+
+**LiteLLM** (chat completions):
+- `dialogue.py` and `planning.py` use LiteLLM for multi-provider support
+- Supports OpenAI, Anthropic, and 100+ other providers
+- Preserves streaming UX for neurodivergent-friendly progress feedback
+
+**OpenAI SDK** (audio processing):
+- `audio.py` uses OpenAI SDK for TTS and Whisper
+- These APIs are not yet supported by LiteLLM
 
 ## Playing Podcasts with Subtitles
 
@@ -175,11 +237,13 @@ The Whisper-generated subtitles are broken into short, readable chunks (1-3 seco
 # Run tests
 pytest
 
-# Format code
-black .
+# Type checking (strict mode, warn-only)
+basedpyright                 # Full project
+basedpyright src/dialogue.py # Single file
 
-# Lint
+# Lint and format
 ruff check .
+ruff format .
 ```
 
 ## Tips

@@ -1,6 +1,8 @@
-openai>=1.0.0
+openai>=1.0.0  # Keep for TTS/Whisper (not supported by LiteLLM)
+litellm>=1.30.0  # Multi-provider AI support (OpenAI, Anthropic, etc.)
 pydub>=0.25.1
 mistralai>=1.0.0
 pypdf>=3.0.0
 audioop-lts>=0.2.0  # Required for Python 3.13+ compatibility
 rich>=13.0.0  # Rich progress bars and live displays
+basedpyright>=1.21.0  # Type checking

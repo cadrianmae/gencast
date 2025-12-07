@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Podcast AI - Generate conversational podcasts from documents
+gencast - Generate conversational podcasts from documents
 Author: Mae Capacite
 """
 
@@ -8,6 +8,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from typing import Dict
 
 from src.utils import extract_text
 from src.dialogue import generate_dialogue
@@ -16,7 +17,7 @@ from src.audio import generate_podcast_audio, DEFAULT_VOICES
 from src.logger import setup_logger, get_logger, color_metric, color_cost
 
 
-def log_usage_and_cost(usage_dict: dict, model: str, verbosity: int):
+def log_usage_and_cost(usage_dict: Dict[str, int], model: str, verbosity: int) -> None:
     """
     Calculate and log token usage and costs with color formatting.
 
@@ -42,7 +43,7 @@ def log_usage_and_cost(usage_dict: dict, model: str, verbosity: int):
     logger.milestone(f"   {tokens_text} | {cost_text}")
 
 
-def check_api_keys():
+def check_api_keys() -> None:
     """Check if required API keys are set in environment."""
     logger = get_logger()
     missing_keys = []
@@ -64,7 +65,7 @@ def check_api_keys():
     logger.info(f"API Keys: OPENAI_API_KEY [OK] | MISTRAL_API_KEY {mistral_status}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate conversational podcasts from documents using AI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -158,6 +159,12 @@ Default voices: HOST1=nova, HOST2=echo
     )
 
     parser.add_argument(
+        '--unlock-token-limit',
+        action='store_true',
+        help='Remove token limit cap (allows model to use maximum context)'
+    )
+
+    parser.add_argument(
         '--minimal',
         action='store_true',
         help='Minimal output: only milestones and final path (no spinners/progress)'
@@ -178,7 +185,7 @@ Default voices: HOST1=nova, HOST2=echo
 
     # Header
     logger.info("=" * 60)
-    logger.info("Podcast AI - Document to Podcast Converter")
+    logger.info("gencast - Document to Podcast Converter")
     logger.info("=" * 60)
 
     # Check API keys
@@ -212,6 +219,7 @@ Default voices: HOST1=nova, HOST2=echo
                     model=args.model,
                     audience=args.audience,
                     custom_instructions=args.instructions,
+                    unlock_token_limit=args.unlock_token_limit,
                     verbosity=verbosity
                 )
 
@@ -246,6 +254,7 @@ Default voices: HOST1=nova, HOST2=echo
             audience=args.audience,
             custom_instructions=args.instructions,
             plan=plan,
+            unlock_token_limit=args.unlock_token_limit,
             verbosity=verbosity
         )
 
