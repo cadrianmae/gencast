@@ -19,17 +19,17 @@
         "input_price_per_million": 0.15,
         "output_price_per_million": 0.60
       },
-      "anthropic/claude-sonnet-4.5": {
+      "anthropic/claude-sonnet-4-5": {
         "provider": "anthropic",
         "input_price_per_million": 3.00,
         "output_price_per_million": 15.00
       },
-      "anthropic/claude-opus-4.5": {
+      "anthropic/claude-opus-4-5": {
         "provider": "anthropic",
         "input_price_per_million": 5.00,
         "output_price_per_million": 25.00
       },
-      "anthropic/claude-haiku-4.5": {
+      "anthropic/claude-haiku-4-5": {
         "provider": "anthropic",
         "input_price_per_million": 1.00,
         "output_price_per_million": 5.00

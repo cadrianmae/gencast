@@ -203,7 +203,7 @@ def calculate_max_tokens(input_length: int, scale_factor: float = 2.0, unlock_li
 
 def generate_dialogue(
     text: str,
-    model: str = "anthropic/claude-sonnet-4.5",
+    model: str = "anthropic/claude-sonnet-4-5",
     style: str = "educational",
     audience: str = "general",
     custom_instructions: Optional[str] = None,
