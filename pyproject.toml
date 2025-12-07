@@ -52,6 +52,9 @@ gencast = "gencast:main"
 [tool.setuptools]
 py-modules = ["gencast"]
 
+[tool.setuptools.package-data]
+"*" = ["pricing.json", "prompts/*.txt", "audiences/*.txt"]
+
 [project.urls]
 Homepage = "https://github.com/cadrianmae/podcast-ai"
 Repository = "https://github.com/cadrianmae/podcast-ai"

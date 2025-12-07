@@ -5,10 +5,11 @@ Author: Mae Capacite
 """
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from src.utils import extract_text
 from src.dialogue import generate_dialogue
@@ -17,11 +18,38 @@ from src.audio import generate_podcast_audio, DEFAULT_VOICES
 from src.logger import setup_logger, get_logger, color_metric, color_cost
 
 
+def load_pricing() -> Dict:
+    """Load pricing data from pricing.json file."""
+    pricing_path = Path(__file__).parent / "pricing.json"
+    try:
+        with open(pricing_path, 'r') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def get_model_pricing(model: str, pricing_data: Dict) -> Optional[Dict]:
+    """
+    Get pricing for a specific model from pricing data.
+
+    Args:
+        model: Model name (e.g., 'gpt-5-mini', 'anthropic/claude-sonnet-4.5')
+        pricing_data: Loaded pricing dictionary
+
+    Returns:
+        Pricing dict with input_price_per_million and output_price_per_million,
+        or None if model not found
+    """
+    chat_models = pricing_data.get('models', {}).get('chat', {})
+    return chat_models.get(model)
+
+
 def log_usage_and_cost(usage_dict: Dict[str, int], model: str, verbosity: int) -> None:
     """
     Calculate and log token usage and costs with color formatting.
 
-    GPT-5-mini pricing: $0.25/1M input, $2.00/1M output
+    Loads pricing from pricing.json and falls back to token-only display
+    if model pricing is unknown.
     """
     if verbosity < 1 or not usage_dict:
         return
@@ -31,16 +59,26 @@ def log_usage_and_cost(usage_dict: Dict[str, int], model: str, verbosity: int) -
     output_tokens = usage_dict.get('completion_tokens', 0)
     total_tokens = usage_dict.get('total_tokens', 0)
 
-    # Calculate cost (GPT-5-mini pricing)
-    input_cost = (input_tokens / 1_000_000) * 0.25
-    output_cost = (output_tokens / 1_000_000) * 2.00
-    total_cost = input_cost + output_cost
-
-    # Format with colors: cyan for tokens, green for cost
+    # Format tokens display
     tokens_text = f"Tokens: {color_metric(f'{input_tokens:,}')} in, {color_metric(f'{output_tokens:,}')} out, {color_metric(f'{total_tokens:,}')} total"
-    cost_text = f"Cost: {color_cost(f'${total_cost:.4f}')}"
 
-    logger.milestone(f"   {tokens_text} | {cost_text}")
+    # Try to load pricing and calculate cost
+    pricing_data = load_pricing()
+    model_pricing = get_model_pricing(model, pricing_data)
+
+    if model_pricing:
+        # Calculate cost with loaded pricing
+        input_price = model_pricing['input_price_per_million']
+        output_price = model_pricing['output_price_per_million']
+        input_cost = (input_tokens / 1_000_000) * input_price
+        output_cost = (output_tokens / 1_000_000) * output_price
+        total_cost = input_cost + output_cost
+
+        cost_text = f"Cost: {color_cost(f'${total_cost:.4f}')}"
+        logger.milestone(f"   {tokens_text} | {cost_text}")
+    else:
+        # Unknown model - show tokens only
+        logger.milestone(f"   {tokens_text}")
 
 
 def check_api_keys() -> None:

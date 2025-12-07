@@ -1,0 +1,73 @@
+{
+  "version": "2025-12",
+  "currency": "USD",
+  "models": {
+    "chat": {
+      "gpt-5-mini": {
+        "provider": "openai",
+        "input_price_per_million": 0.25,
+        "output_price_per_million": 2.00
+      },
+      "gpt-4o": {
+        "provider": "openai",
+        "input_price_per_million": 2.50,
+        "output_price_per_million": 10.00
+      },
+      "gpt-4o-mini": {
+        "provider": "openai",
+        "input_price_per_million": 0.15,
+        "output_price_per_million": 0.60
+      },
+      "anthropic/claude-sonnet-4.5": {
+        "provider": "anthropic",
+        "input_price_per_million": 3.00,
+        "output_price_per_million": 15.00
+      },
+      "anthropic/claude-opus-4.5": {
+        "provider": "anthropic",
+        "input_price_per_million": 5.00,
+        "output_price_per_million": 25.00
+      },
+      "anthropic/claude-haiku-4.5": {
+        "provider": "anthropic",
+        "input_price_per_million": 1.00,
+        "output_price_per_million": 5.00
+      },
+      "mistral-large-latest": {
+        "provider": "mistral",
+        "input_price_per_million": 2.00,
+        "output_price_per_million": 6.00
+      }
+    },
+    "audio": {
+      "tts-1-hd": {
+        "provider": "openai",
+        "price_per_million_characters": 30.00,
+        "unit": "characters"
+      },
+      "tts-1": {
+        "provider": "openai",
+        "price_per_million_characters": 15.00,
+        "unit": "characters"
+      },
+      "whisper-1": {
+        "provider": "openai",
+        "price_per_minute": 0.006,
+        "unit": "minutes"
+      }
+    }
+  },
+  "notes": {
+    "updated": "2025-12-07",
+    "sources": [
+      "https://openai.com/api/pricing/",
+      "https://docs.claude.com/en/docs/about-claude/pricing",
+      "https://mistral.ai/pricing"
+    ],
+    "batch_discounts": {
+      "openai_batch": "50% off standard pricing for 24h processing",
+      "anthropic_batch": "50% savings with batch processing",
+      "anthropic_cache": "90% savings with prompt caching (cache hits cost 0.1x)"
+    }
+  }
+}
