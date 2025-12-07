@@ -77,7 +77,7 @@ def generate_plan(
     audience: str = "general",
     custom_instructions: str = None,
     verbosity: int = 2
-) -> str:
+) -> tuple:
     """
     Generate podcast structure plan from document text using OpenAI.
 
@@ -92,7 +92,10 @@ def generate_plan(
         verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)
 
     Returns:
-        Markdown-formatted plan outline
+        Tuple of (plan_text, usage_dict) where usage_dict contains:
+            - prompt_tokens: Input token count
+            - completion_tokens: Output token count
+            - total_tokens: Total token count
 
     Raises:
         ValueError: If OPENAI_API_KEY is not set
@@ -133,6 +136,7 @@ def generate_plan(
         # Stream the plan generation with live preview
         plan_chunks = []
         current_preview = ""
+        usage_data = None
 
         if RICH_AVAILABLE and verbosity >= 2:
             # Use Rich Live preview for visual feedback
@@ -146,10 +150,15 @@ def generate_plan(
                     ],
                     temperature=0.7,  # Slightly lower than dialogue for more structured output
                     max_tokens=max_tokens,
-                    stream=True
+                    stream=True,
+                    stream_options={"include_usage": True}
                 )
 
                 for chunk in stream:
+                    # Capture usage data from final chunk
+                    if hasattr(chunk, 'usage') and chunk.usage:
+                        usage_data = chunk.usage
+
                     if chunk.choices[0].delta.content:
                         content = chunk.choices[0].delta.content
                         plan_chunks.append(content)
@@ -179,17 +188,29 @@ def generate_plan(
                 ],
                 temperature=0.7,
                 max_tokens=max_tokens,
-                stream=True
+                stream=True,
+                stream_options={"include_usage": True}
             )
 
             for chunk in stream:
+                # Capture usage data from final chunk
+                if hasattr(chunk, 'usage') and chunk.usage:
+                    usage_data = chunk.usage
+
                 if chunk.choices[0].delta.content:
                     plan_chunks.append(chunk.choices[0].delta.content)
 
         plan = "".join(plan_chunks)
         logger.info(f"Generated plan: {len(plan)} characters")
 
-        return plan.strip()
+        # Prepare usage dict
+        usage_dict = {
+            'prompt_tokens': usage_data.prompt_tokens if usage_data else 0,
+            'completion_tokens': usage_data.completion_tokens if usage_data else 0,
+            'total_tokens': usage_data.total_tokens if usage_data else 0
+        }
+
+        return plan.strip(), usage_dict
 
     except Exception as e:
         raise Exception(f"Failed to generate plan: {e}")

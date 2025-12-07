@@ -204,7 +204,7 @@ def generate_dialogue(
     custom_instructions: str = None,
     plan: str = None,
     verbosity: int = 2
-) -> str:
+) -> tuple:
     """
     Generate conversational dialogue from document text using OpenAI.
 
@@ -218,7 +218,10 @@ def generate_dialogue(
         verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)
 
     Returns:
-        Formatted dialogue string with HOST1:/HOST2: labels
+        Tuple of (dialogue_text, usage_dict) where usage_dict contains:
+            - prompt_tokens: Input token count
+            - completion_tokens: Output token count
+            - total_tokens: Total token count
 
     Raises:
         ValueError: If OPENAI_API_KEY is not set
@@ -261,6 +264,7 @@ def generate_dialogue(
         # Stream the dialogue generation with live preview (only at verbosity >= 2)
         dialogue_chunks = []
         current_preview = ""
+        usage_data = None
 
         if RICH_AVAILABLE and verbosity >= 2:
             # Use Rich Live preview for visual feedback
@@ -274,10 +278,15 @@ def generate_dialogue(
                     ],
                     temperature=0.8,
                     max_tokens=max_tokens,
-                    stream=True
+                    stream=True,
+                    stream_options={"include_usage": True}
                 )
 
                 for chunk in stream:
+                    # Capture usage data from final chunk
+                    if hasattr(chunk, 'usage') and chunk.usage:
+                        usage_data = chunk.usage
+
                     if chunk.choices[0].delta.content:
                         content = chunk.choices[0].delta.content
                         dialogue_chunks.append(content)
@@ -307,10 +316,15 @@ def generate_dialogue(
                 ],
                 temperature=0.8,
                 max_tokens=max_tokens,
-                stream=True
+                stream=True,
+                stream_options={"include_usage": True}
             )
 
             for chunk in stream:
+                # Capture usage data from final chunk
+                if hasattr(chunk, 'usage') and chunk.usage:
+                    usage_data = chunk.usage
+
                 if chunk.choices[0].delta.content:
                     dialogue_chunks.append(chunk.choices[0].delta.content)
 
@@ -323,7 +337,15 @@ def generate_dialogue(
             removed_lines = len(dialogue.split('\n')) - len(cleaned_dialogue.split('\n'))
             if removed_lines > 0:
                 logger.info(f"Cleaned format: removed {removed_lines} non-dialogue lines")
-            return cleaned_dialogue
+
+            # Prepare usage dict
+            usage_dict = {
+                'prompt_tokens': usage_data.prompt_tokens if usage_data else 0,
+                'completion_tokens': usage_data.completion_tokens if usage_data else 0,
+                'total_tokens': usage_data.total_tokens if usage_data else 0
+            }
+
+            return cleaned_dialogue, usage_dict
         except ValueError as e:
             logger.warning(f"Warning: {e}")
             logger.warning("Raw dialogue (first 500 chars):")

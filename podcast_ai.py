@@ -16,6 +16,28 @@ from src.audio import generate_podcast_audio, DEFAULT_VOICES
 from src.logger import setup_logger, get_logger
 
 
+def log_usage_and_cost(usage_dict: dict, model: str, verbosity: int):
+    """
+    Calculate and log token usage and costs.
+
+    GPT-5-mini pricing: $0.25/1M input, $2.00/1M output
+    """
+    if verbosity < 1 or not usage_dict:
+        return
+
+    logger = get_logger()
+    input_tokens = usage_dict.get('prompt_tokens', 0)
+    output_tokens = usage_dict.get('completion_tokens', 0)
+    total_tokens = usage_dict.get('total_tokens', 0)
+
+    # Calculate cost (GPT-5-mini pricing)
+    input_cost = (input_tokens / 1_000_000) * 0.25
+    output_cost = (output_tokens / 1_000_000) * 2.00
+    total_cost = input_cost + output_cost
+
+    logger.milestone(f"   Tokens: {input_tokens:,} in, {output_tokens:,} out, {total_tokens:,} total | Cost: ${total_cost:.4f}")
+
+
 def check_api_keys():
     """Check if required API keys are set in environment."""
     logger = get_logger()
@@ -181,13 +203,16 @@ Default voices: HOST1=nova, HOST2=echo
             current_step += 1
             try:
                 logger.milestone(f"\nStep {current_step}/{total_steps}: Generating podcast plan...")
-                plan = generate_plan(
+                plan, plan_usage = generate_plan(
                     text,
                     model=args.model,
                     audience=args.audience,
                     custom_instructions=args.instructions,
                     verbosity=verbosity
                 )
+
+                # Log usage and cost
+                log_usage_and_cost(plan_usage, args.model, verbosity)
 
                 # Display plan to user
                 logger.info(f"\n{'=' * 60}")
@@ -210,7 +235,7 @@ Default voices: HOST1=nova, HOST2=echo
         # Step 3: Generate dialogue
         current_step += 1
         logger.milestone(f"\nStep {current_step}/{total_steps}: Generating dialogue...")
-        dialogue = generate_dialogue(
+        dialogue, dialogue_usage = generate_dialogue(
             text,
             model=args.model,
             style=args.style,
@@ -219,6 +244,9 @@ Default voices: HOST1=nova, HOST2=echo
             plan=plan,
             verbosity=verbosity
         )
+
+        # Log usage and cost
+        log_usage_and_cost(dialogue_usage, args.model, verbosity)
 
         # Optionally save dialogue
         if args.save_dialogue:
