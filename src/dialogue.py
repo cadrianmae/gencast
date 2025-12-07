@@ -5,7 +5,8 @@ Converts document text into natural conversational podcast dialogue.
 
 import os
 from pathlib import Path
-from openai import OpenAI
+from typing import Optional, Dict, Tuple, Any
+from litellm import completion
 
 from .logger import get_logger
 
@@ -161,7 +162,7 @@ def load_audience_modifier(audience: str = "general") -> str:
     return ""
 
 
-def calculate_max_tokens(input_length: int, scale_factor: float = 2.0) -> int:
+def calculate_max_tokens(input_length: int, scale_factor: float = 2.0, unlock_limit: bool = False) -> Optional[int]:
     """
     Calculate appropriate max_tokens based on input content length.
 
@@ -172,16 +173,20 @@ def calculate_max_tokens(input_length: int, scale_factor: float = 2.0) -> int:
     - Small docs (< 1000 chars): 2000-4000 tokens
     - Medium docs (1000-5000 chars): 4000-10000 tokens
     - Large docs (5000-8000 chars): 10000-16000 tokens
-    - Very large docs (> 8000 chars): 16000 tokens (capped)
+    - Very large docs (> 8000 chars): 16000 tokens (capped by default)
 
     Args:
         input_length: Character count of input text
         scale_factor: Tokens per character multiplier (default: 2.0)
                      Higher = longer dialogue output
+        unlock_limit: If True, returns None (no token limit)
 
     Returns:
-        Appropriate max_tokens value
+        Appropriate max_tokens value, or None if unlocked
     """
+    if unlock_limit:
+        return None  # No limit - let model use its maximum
+
     # Base minimum for very short inputs
     min_tokens = 2000
 
@@ -191,7 +196,7 @@ def calculate_max_tokens(input_length: int, scale_factor: float = 2.0) -> int:
 
     # Apply floor and ceiling
     max_tokens = max(min_tokens, scaled_tokens)
-    max_tokens = min(max_tokens, 16000)  # Cap at model limits
+    max_tokens = min(max_tokens, 16000)  # Cap at safe limit
 
     return max_tokens
 
@@ -201,12 +206,13 @@ def generate_dialogue(
     model: str = "gpt-5-mini",
     style: str = "educational",
     audience: str = "general",
-    custom_instructions: str = None,
-    plan: str = None,
+    custom_instructions: Optional[str] = None,
+    plan: Optional[str] = None,
+    unlock_token_limit: bool = False,
     verbosity: int = 2
-) -> tuple:
+) -> Tuple[str, Dict[str, int]]:
     """
-    Generate conversational dialogue from document text using OpenAI.
+    Generate conversational dialogue from document text using LiteLLM.
 
     Args:
         text: The extracted document text to convert
@@ -215,6 +221,7 @@ def generate_dialogue(
         audience: Target audience (general, technical, academic, beginner)
         custom_instructions: Additional custom instructions to append to the prompt
         plan: Optional podcast plan outline to guide dialogue generation
+        unlock_token_limit: Remove 16k token cap (default: False)
         verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)
 
     Returns:
@@ -250,16 +257,14 @@ def generate_dialogue(
         full_prompt += "\n\nGenerate dialogue that comprehensively covers all topics in the plan."
 
     # Calculate appropriate max_tokens based on input length
-    max_tokens = calculate_max_tokens(len(text))
+    max_tokens = calculate_max_tokens(len(text), unlock_limit=unlock_token_limit)
 
     try:
-        client = OpenAI(api_key=api_key)
-
         logger.info(f"Generating dialogue with {model}...")
         logger.info(f"   Style: {style} | Audience: {audience}")
         if custom_instructions:
             logger.info(f"   Custom: {custom_instructions[:60]}{'...' if len(custom_instructions) > 60 else ''}")
-        logger.info(f"   Input: {len(text)} chars -> Max tokens: {max_tokens}")
+        logger.info(f"   Input: {len(text)} chars -> Max tokens: {max_tokens if max_tokens else 'unlimited'}")
 
         # Stream the dialogue generation with live preview (only at verbosity >= 2)
         dialogue_chunks = []
@@ -270,17 +275,21 @@ def generate_dialogue(
             # Use Rich Live preview for visual feedback
             console = Console(force_terminal=True)
             with Live("", console=console) as live:
-                stream = client.chat.completions.create(
-                    model=model,
-                    messages=[
+                # Build request parameters
+                request_params = {
+                    "model": model,
+                    "messages": [
                         {"role": "system", "content": full_prompt},
                         {"role": "user", "content": f"Convert this content into a podcast dialogue:\n\n{text}"}
                     ],
-                    temperature=0.8,
-                    max_tokens=max_tokens,
-                    stream=True,
-                    stream_options={"include_usage": True}
-                )
+                    "stream": True,
+                    "api_key": api_key
+                }
+                # Only add max_tokens if limited
+                if max_tokens is not None:
+                    request_params["max_tokens"] = max_tokens
+
+                stream = completion(**request_params)
 
                 for chunk in stream:
                     # Capture usage data from final chunk
@@ -308,17 +317,21 @@ def generate_dialogue(
                         live.update(preview_text)
         else:
             # Silent generation (no live preview)
-            stream = client.chat.completions.create(
-                model=model,
-                messages=[
+            # Build request parameters
+            request_params = {
+                "model": model,
+                "messages": [
                     {"role": "system", "content": full_prompt},
                     {"role": "user", "content": f"Convert this content into a podcast dialogue:\n\n{text}"}
                 ],
-                temperature=0.8,
-                max_tokens=max_tokens,
-                stream=True,
-                stream_options={"include_usage": True}
-            )
+                "stream": True,
+                "api_key": api_key
+            }
+            # Only add max_tokens if limited
+            if max_tokens is not None:
+                request_params["max_tokens"] = max_tokens
+
+            stream = completion(**request_params)
 
             for chunk in stream:
                 # Capture usage data from final chunk

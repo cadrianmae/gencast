@@ -5,7 +5,8 @@ Generates structured outline before dialogue generation for comprehensive covera
 
 import os
 from pathlib import Path
-from openai import OpenAI
+from typing import Optional, Dict, Tuple
+from litellm import completion
 
 from .logger import get_logger
 from .dialogue import calculate_max_tokens
@@ -48,7 +49,7 @@ Include:
 Output as structured markdown."""
 
 
-def calculate_plan_max_tokens(input_length: int) -> int:
+def calculate_plan_max_tokens(input_length: int, unlock_limit: bool = False) -> Optional[int]:
     """
     Calculate appropriate max_tokens for plan generation.
 
@@ -57,11 +58,17 @@ def calculate_plan_max_tokens(input_length: int) -> int:
 
     Args:
         input_length: Character count of input text
+        unlock_limit: If True, returns None (no token limit)
 
     Returns:
-        Appropriate max_tokens value for planning (600-2000 range)
+        Appropriate max_tokens value for planning (600-2000 range), or None if unlocked
     """
-    dialogue_tokens = calculate_max_tokens(input_length)
+    if unlock_limit:
+        return None  # No limit - let model use its maximum
+
+    dialogue_tokens = calculate_max_tokens(input_length, unlock_limit=False)
+    if dialogue_tokens is None:
+        return None
     plan_tokens = int(dialogue_tokens * 0.3)
 
     # Plan should typically be 600-2000 tokens
@@ -75,11 +82,12 @@ def generate_plan(
     text: str,
     model: str = "gpt-5-mini",
     audience: str = "general",
-    custom_instructions: str = None,
+    custom_instructions: Optional[str] = None,
+    unlock_token_limit: bool = False,
     verbosity: int = 2
-) -> tuple:
+) -> Tuple[str, Dict[str, int]]:
     """
-    Generate podcast structure plan from document text using OpenAI.
+    Generate podcast structure plan from document text using LiteLLM.
 
     Creates a comprehensive outline that will be used to guide dialogue
     generation, ensuring thorough coverage of all source material.
@@ -89,6 +97,7 @@ def generate_plan(
         model: OpenAI model to use (default: gpt-5-mini)
         audience: Target audience (general, technical, academic, beginner)
         custom_instructions: Additional instructions for planning focus
+        unlock_token_limit: Remove token cap (default: False)
         verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)
 
     Returns:
@@ -122,16 +131,14 @@ def generate_plan(
         planning_prompt += f"\n\nAdditional focus: {custom_instructions}"
 
     # Calculate appropriate max_tokens for planning
-    max_tokens = calculate_plan_max_tokens(len(text))
+    max_tokens = calculate_plan_max_tokens(len(text), unlock_limit=unlock_token_limit)
 
     try:
-        client = OpenAI(api_key=api_key)
-
         logger.info(f"Generating plan with {model}...")
         logger.info(f"   Audience: {audience}")
         if custom_instructions:
             logger.info(f"   Focus: {custom_instructions[:60]}{'...' if len(custom_instructions) > 60 else ''}")
-        logger.info(f"   Input: {len(text)} chars -> Max tokens: {max_tokens}")
+        logger.info(f"   Input: {len(text)} chars -> Max tokens: {max_tokens if max_tokens else 'unlimited'}")
 
         # Stream the plan generation with live preview
         plan_chunks = []
@@ -142,17 +149,21 @@ def generate_plan(
             # Use Rich Live preview for visual feedback
             console = Console(force_terminal=True)
             with Live("", console=console) as live:
-                stream = client.chat.completions.create(
-                    model=model,
-                    messages=[
+                # Build request parameters
+                request_params = {
+                    "model": model,
+                    "messages": [
                         {"role": "system", "content": planning_prompt},
                         {"role": "user", "content": f"Analyze this content and create a comprehensive podcast plan:\n\n{text}"}
                     ],
-                    temperature=0.7,  # Slightly lower than dialogue for more structured output
-                    max_tokens=max_tokens,
-                    stream=True,
-                    stream_options={"include_usage": True}
-                )
+                    "stream": True,
+                    "api_key": api_key
+                }
+                # Only add max_tokens if limited
+                if max_tokens is not None:
+                    request_params["max_tokens"] = max_tokens
+
+                stream = completion(**request_params)
 
                 for chunk in stream:
                     # Capture usage data from final chunk
@@ -180,17 +191,21 @@ def generate_plan(
                         live.update(preview_text)
         else:
             # Silent generation (no live preview)
-            stream = client.chat.completions.create(
-                model=model,
-                messages=[
+            # Build request parameters
+            request_params = {
+                "model": model,
+                "messages": [
                     {"role": "system", "content": planning_prompt},
                     {"role": "user", "content": f"Analyze this content and create a comprehensive podcast plan:\n\n{text}"}
                 ],
-                temperature=0.7,
-                max_tokens=max_tokens,
-                stream=True,
-                stream_options={"include_usage": True}
-            )
+                "stream": True,
+                "api_key": api_key
+            }
+            # Only add max_tokens if limited
+            if max_tokens is not None:
+                request_params["max_tokens"] = max_tokens
+
+            stream = completion(**request_params)
 
             for chunk in stream:
                 # Capture usage data from final chunk

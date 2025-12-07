@@ -15,9 +15,6 @@ from .logger import get_logger
 
 try:
     from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn
-    from rich.panel import Panel
-    from rich.table import Table
-    from rich.live import Live
     from rich.console import Console
     RICH_AVAILABLE = True
 except ImportError:

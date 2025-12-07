@@ -15,6 +15,7 @@ Color scheme:
 
 import logging
 import sys
+from typing import Any
 
 try:
     from rich.console import Console
@@ -28,7 +29,7 @@ MILESTONE = 25
 logging.addLevelName(MILESTONE, "MILESTONE")
 
 
-def milestone(self, message, *args, **kwargs):
+def milestone(self: logging.Logger, message: str, *args: Any, **kwargs: Any) -> None:
     """Log a milestone message (Step 1/3, etc.)."""
     if self.isEnabledFor(MILESTONE):
         self._log(MILESTONE, message, args, **kwargs)
@@ -68,7 +69,7 @@ def setup_logger(verbosity: int = 2) -> logging.Logger:
 
         # Custom formatter that adds colors based on log level
         class ColoredFormatter(logging.Formatter):
-            def format(self, record):
+            def format(self, record: logging.LogRecord) -> str:
                 msg = super().format(record)
                 # Apply colors based on log level
                 if record.levelno >= logging.ERROR:
