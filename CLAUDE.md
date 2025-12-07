@@ -57,7 +57,7 @@ gencast input.md -o output.mp3 \
   --host1-voice nova \
   --host2-voice echo \
   --spatial-separation 0.4 \
-  --model gpt-4o-mini \
+  --model gpt-5-mini \
   --save-dialogue
 ```
 
@@ -128,7 +128,7 @@ prompt_path = Path(__file__).parent.parent / "prompts" / f"{style}.txt"
 ```python
 # OpenAI streaming API with Rich live preview
 stream = client.chat.completions.create(
-    model="gpt-4o-mini",  # Cost-effective default
+    model="gpt-5-mini",  # Default model
     messages=[{"role": "system", "content": full_prompt}, ...],
     temperature=0.8,  # Creative but coherent
     max_tokens=4000,
@@ -221,12 +221,12 @@ else:
 
 | API | Purpose | Model | Cost per Podcast |
 |-----|---------|-------|------------------|
-| OpenAI GPT | Dialogue | `gpt-4o-mini` | ~$0.02-0.05 |
+| OpenAI GPT | Dialogue | `gpt-5-mini` | ~$0.07-0.17 |
 | OpenAI TTS | Audio | `tts-1-hd` | ~$0.06-0.10 |
 | OpenAI Whisper | Subtitles | `whisper-1` | ~$0.01 |
 | Mistral AI | PDF (optional) | `mistral-large-latest` | ~$0.01 |
 
-**Total**: ~$0.10-0.17 per 3-minute podcast
+**Total**: ~$0.15-0.29 per 3-minute podcast
 
 ## Testing Strategy
 

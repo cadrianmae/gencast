@@ -73,7 +73,7 @@ def calculate_plan_max_tokens(input_length: int) -> int:
 
 def generate_plan(
     text: str,
-    model: str = "gpt-4o-mini",
+    model: str = "gpt-5-mini",
     audience: str = "general",
     custom_instructions: str = None,
     verbosity: int = 2
@@ -86,7 +86,7 @@ def generate_plan(
 
     Args:
         text: The extracted document text to analyze
-        model: OpenAI model to use (default: gpt-4o-mini)
+        model: OpenAI model to use (default: gpt-5-mini)
         audience: Target audience (general, technical, academic, beginner)
         custom_instructions: Additional instructions for planning focus
         verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)

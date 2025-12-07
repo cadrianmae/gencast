@@ -82,8 +82,8 @@ Default voices: HOST1=nova, HOST2=echo
 
     parser.add_argument(
         '--model',
-        default='gpt-4o-mini',
-        help='OpenAI model for dialogue generation (default: gpt-4o-mini)'
+        default='gpt-5-mini',
+        help='OpenAI model for dialogue generation (default: gpt-5-mini)'
     )
 
     parser.add_argument(

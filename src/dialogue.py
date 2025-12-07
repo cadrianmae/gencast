@@ -198,7 +198,7 @@ def calculate_max_tokens(input_length: int, scale_factor: float = 2.0) -> int:
 
 def generate_dialogue(
     text: str,
-    model: str = "gpt-4o-mini",
+    model: str = "gpt-5-mini",
     style: str = "educational",
     audience: str = "general",
     custom_instructions: str = None,
@@ -210,7 +210,7 @@ def generate_dialogue(
 
     Args:
         text: The extracted document text to convert
-        model: OpenAI model to use (default: gpt-4o-mini)
+        model: OpenAI model to use (default: gpt-5-mini)
         style: Podcast style (educational, interview, casual, debate)
         audience: Target audience (general, technical, academic, beginner)
         custom_instructions: Additional custom instructions to append to the prompt
