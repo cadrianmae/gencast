@@ -111,12 +111,11 @@ def generate_plan(
         Exception: If API call fails
     """
     logger = get_logger()
-    api_key = os.environ.get('OPENAI_API_KEY')
-    if not api_key:
-        raise ValueError(
-            "OPENAI_API_KEY environment variable not set.\n"
-            "Please set it with: export OPENAI_API_KEY='sk-...'"
-        )
+
+    # LiteLLM automatically reads API keys from environment based on provider
+    # OpenAI: OPENAI_API_KEY
+    # Anthropic: ANTHROPIC_API_KEY
+    # etc.
 
     # Load planning prompt
     planning_prompt = load_planning_prompt()
@@ -156,8 +155,7 @@ def generate_plan(
                         {"role": "system", "content": planning_prompt},
                         {"role": "user", "content": f"Analyze this content and create a comprehensive podcast plan:\n\n{text}"}
                     ],
-                    "stream": True,
-                    "api_key": api_key
+                    "stream": True
                 }
                 # Only add max_tokens if limited
                 if max_tokens is not None:
@@ -198,8 +196,7 @@ def generate_plan(
                     {"role": "system", "content": planning_prompt},
                     {"role": "user", "content": f"Analyze this content and create a comprehensive podcast plan:\n\n{text}"}
                 ],
-                "stream": True,
-                "api_key": api_key
+                "stream": True
             }
             # Only add max_tokens if limited
             if max_tokens is not None:

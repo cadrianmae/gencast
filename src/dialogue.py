@@ -235,12 +235,11 @@ def generate_dialogue(
         Exception: If API call fails
     """
     logger = get_logger()
-    api_key = os.environ.get('OPENAI_API_KEY')
-    if not api_key:
-        raise ValueError(
-            "OPENAI_API_KEY environment variable not set.\n"
-            "Please set it with: export OPENAI_API_KEY='sk-...'"
-        )
+
+    # LiteLLM automatically reads API keys from environment based on provider
+    # OpenAI: OPENAI_API_KEY
+    # Anthropic: ANTHROPIC_API_KEY
+    # etc.
 
     # Load style prompt and audience modifier
     system_prompt = load_prompt(style)
@@ -282,8 +281,7 @@ def generate_dialogue(
                         {"role": "system", "content": full_prompt},
                         {"role": "user", "content": f"Convert this content into a podcast dialogue:\n\n{text}"}
                     ],
-                    "stream": True,
-                    "api_key": api_key
+                    "stream": True
                 }
                 # Only add max_tokens if limited
                 if max_tokens is not None:
@@ -324,8 +322,7 @@ def generate_dialogue(
                     {"role": "system", "content": full_prompt},
                     {"role": "user", "content": f"Convert this content into a podcast dialogue:\n\n{text}"}
                 ],
-                "stream": True,
-                "api_key": api_key
+                "stream": True
             }
             # Only add max_tokens if limited
             if max_tokens is not None:
