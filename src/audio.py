@@ -11,6 +11,8 @@ from typing import List, Tuple
 from openai import OpenAI
 from pydub import AudioSegment
 
+from .logger import get_logger
+
 try:
     from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn
     from rich.panel import Panel
@@ -170,7 +172,8 @@ def mix_audio_segments(
     host1_voice: str = DEFAULT_VOICES['HOST1'],
     host2_voice: str = DEFAULT_VOICES['HOST2'],
     pause_ms: int = 300,
-    spatial_separation: float = 0.4
+    spatial_separation: float = 0.4,
+    verbosity: int = 2
 ) -> Tuple[AudioSegment, List[Tuple[str, str, int, int]]]:
     """
     Generate and mix audio segments with pauses between speakers.
@@ -183,6 +186,7 @@ def mix_audio_segments(
         pause_ms: Milliseconds of silence between segments
         spatial_separation: Spatial separation amount 0.0-1.0 (default: 0.4)
                            Controls both panning and ITD for realistic spatial effect
+        verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)
 
     Returns:
         Tuple of (combined AudioSegment, timing data)
@@ -199,6 +203,7 @@ def mix_audio_segments(
         'HOST2': spatial_separation     # Right
     }
 
+    logger = get_logger()
     combined = AudioSegment.empty()
     pause = AudioSegment.silent(duration=pause_ms)
     timing_data = []
@@ -207,8 +212,8 @@ def mix_audio_segments(
     current_time_ms = 0
     start_time = time.time()
 
-    if RICH_AVAILABLE:
-        # Rich progress display with metrics
+    if RICH_AVAILABLE and verbosity >= 2:
+        # Rich progress display with metrics (only at verbosity >= 2)
         console = Console(force_terminal=True)
         with Progress(
             SpinnerColumn(),
@@ -260,13 +265,8 @@ def mix_audio_segments(
                 progress.update(task, completed=i)
 
     else:
-        # Fallback without rich
-        print(f"Generating audio for {total_segments} dialogue segments...")
-        print(f"   Spatial separation: {spatial_separation} (panning + {abs(spatial_separation) * 0.6:.2f}ms ITD)")
-
+        # Silent generation (no progress display)
         for i, (speaker, text) in enumerate(segments, 1):
-            print(f"   [{i}/{total_segments}] {speaker}: {text[:50]}...")
-
             voice = voices.get(speaker, host1_voice)
             audio = generate_speech(text, voice)
 
@@ -289,7 +289,7 @@ def mix_audio_segments(
     return combined, timing_data
 
 
-def generate_srt_with_whisper(audio_path: str, output_path: str) -> str:
+def generate_srt_with_whisper(audio_path: str, output_path: str, verbosity: int = 2) -> str:
     """
     Generate SRT subtitle file using OpenAI Whisper transcription.
     This produces properly timed, readable subtitles broken into natural chunks.
@@ -297,13 +297,15 @@ def generate_srt_with_whisper(audio_path: str, output_path: str) -> str:
     Args:
         audio_path: Path to the audio file (MP3)
         output_path: Path to save the SRT file
+        verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)
 
     Returns:
         Path to the generated SRT file
     """
+    logger = get_logger()
     api_key = os.environ.get('OPENAI_API_KEY')
     if not api_key:
-        print("⚠️  OPENAI_API_KEY not found, skipping subtitle generation")
+        logger.warning("OPENAI_API_KEY not found, skipping subtitle generation")
         return ""
 
     try:
@@ -312,7 +314,7 @@ def generate_srt_with_whisper(audio_path: str, output_path: str) -> str:
         # Get file size for display
         file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
 
-        if RICH_AVAILABLE:
+        if RICH_AVAILABLE and verbosity >= 2:
             console = Console(force_terminal=True)
             with Progress(
                 SpinnerColumn(),
@@ -335,7 +337,7 @@ def generate_srt_with_whisper(audio_path: str, output_path: str) -> str:
 
                 progress.update(task, completed=True)
         else:
-            print(f"Generating subtitles with Whisper ({file_size_mb:.1f} MB)...")
+            # Silent transcription (no progress)
             with open(audio_path, 'rb') as audio_file:
                 transcript = client.audio.transcriptions.create(
                     model="whisper-1",
@@ -350,26 +352,29 @@ def generate_srt_with_whisper(audio_path: str, output_path: str) -> str:
         return str(srt_path)
 
     except Exception as e:
-        print(f"⚠️  Failed to generate subtitles with Whisper: {e}")
+        logger.warning(f"Failed to generate subtitles with Whisper: {e}")
         return ""
 
 
-def export_podcast(audio: AudioSegment, output_path: str) -> str:
+def export_podcast(audio: AudioSegment, output_path: str, verbosity: int = 2) -> str:
     """
     Export audio as MP3 file.
 
     Args:
         audio: AudioSegment to export
         output_path: Path to save the MP3 file
+        verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)
 
     Returns:
         Path to the exported file
     """
+    logger = get_logger()
+
     # Ensure output directory exists
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"💾 Exporting podcast to: {output_path}")
+    logger.info(f"Exporting podcast to: {output_path}")
 
     audio.export(
         str(output_path),
@@ -386,7 +391,7 @@ def export_podcast(audio: AudioSegment, output_path: str) -> str:
     duration_mins = int(duration_seconds // 60)
     duration_secs = int(duration_seconds % 60)
 
-    print(f"✅ Podcast created: {duration_mins}m {duration_secs}s")
+    logger.info(f"Podcast created: {duration_mins}m {duration_secs}s")
 
     return str(output_path)
 
@@ -396,7 +401,8 @@ def generate_podcast_audio(
     output_path: str,
     host1_voice: str = DEFAULT_VOICES['HOST1'],
     host2_voice: str = DEFAULT_VOICES['HOST2'],
-    spatial_separation: float = 0.4
+    spatial_separation: float = 0.4,
+    verbosity: int = 2
 ) -> str:
     """
     Main function to generate podcast audio from dialogue.
@@ -408,23 +414,29 @@ def generate_podcast_audio(
         host1_voice: Voice for HOST1
         host2_voice: Voice for HOST2
         spatial_separation: Spatial separation 0.0-1.0 (controls panning + ITD)
+        verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)
 
     Returns:
         Path to the generated podcast file
     """
+    logger = get_logger()
     segments = parse_dialogue(dialogue_text)
-    print(f"📝 Parsed {len(segments)} dialogue segments")
+    logger.info(f"Parsed {len(segments)} dialogue segments")
 
     # Generate audio with timing data
-    audio, timing_data = mix_audio_segments(segments, host1_voice, host2_voice, spatial_separation=spatial_separation)
+    audio, timing_data = mix_audio_segments(
+        segments, host1_voice, host2_voice,
+        spatial_separation=spatial_separation,
+        verbosity=verbosity
+    )
 
     # Export MP3
-    mp3_path = export_podcast(audio, output_path)
+    mp3_path = export_podcast(audio, output_path, verbosity=verbosity)
 
     # Generate SRT subtitle file using Whisper
     srt_path = Path(output_path).with_suffix('.srt')
-    generated_srt = generate_srt_with_whisper(mp3_path, str(srt_path))
+    generated_srt = generate_srt_with_whisper(mp3_path, str(srt_path), verbosity=verbosity)
     if generated_srt:
-        print(f"✅ Generated subtitles: {srt_path}")
+        logger.info(f"Generated subtitles: {srt_path}")
 
     return mp3_path

@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 from openai import OpenAI
 
+from .logger import get_logger
+
 try:
     from rich.live import Live
     from rich.text import Text
@@ -60,16 +62,17 @@ def load_prompt(style: str = "educational") -> str:
     Returns:
         System prompt text, or fallback if file not found
     """
+    logger = get_logger()
     prompt_path = Path(__file__).parent.parent / "prompts" / f"{style}.txt"
 
     try:
         if prompt_path.exists():
             return prompt_path.read_text(encoding='utf-8')
     except Exception as e:
-        print(f"⚠️  Could not load prompt '{style}': {e}")
+        logger.warning(f"Could not load prompt '{style}': {e}")
 
     # Fallback to hardcoded prompt
-    print(f"⚠️  Using fallback prompt (educational)")
+    logger.warning(f"Using fallback prompt (educational)")
     return FALLBACK_SYSTEM_PROMPT
 
 
@@ -141,6 +144,8 @@ def load_audience_modifier(audience: str = "general") -> str:
     Returns:
         Audience modifier text, or empty string if not found
     """
+    logger = get_logger()
+
     if audience == "general":
         # General is default, no modifier needed
         audience_path = Path(__file__).parent.parent / "audiences" / "general.txt"
@@ -151,7 +156,7 @@ def load_audience_modifier(audience: str = "general") -> str:
         if audience_path.exists():
             return "\n\n" + audience_path.read_text(encoding='utf-8')
     except Exception as e:
-        print(f"⚠️  Could not load audience modifier '{audience}': {e}")
+        logger.warning(f"Could not load audience modifier '{audience}': {e}")
 
     return ""
 
@@ -196,7 +201,8 @@ def generate_dialogue(
     model: str = "gpt-4o-mini",
     style: str = "educational",
     audience: str = "general",
-    custom_instructions: str = None
+    custom_instructions: str = None,
+    verbosity: int = 2
 ) -> str:
     """
     Generate conversational dialogue from document text using OpenAI.
@@ -207,6 +213,7 @@ def generate_dialogue(
         style: Podcast style (educational, interview, casual, debate)
         audience: Target audience (general, technical, academic, beginner)
         custom_instructions: Additional custom instructions to append to the prompt
+        verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)
 
     Returns:
         Formatted dialogue string with HOST1:/HOST2: labels
@@ -215,6 +222,7 @@ def generate_dialogue(
         ValueError: If OPENAI_API_KEY is not set
         Exception: If API call fails
     """
+    logger = get_logger()
     api_key = os.environ.get('OPENAI_API_KEY')
     if not api_key:
         raise ValueError(
@@ -237,17 +245,18 @@ def generate_dialogue(
     try:
         client = OpenAI(api_key=api_key)
 
-        print(f"🎭 Generating dialogue with {model}...")
-        print(f"   Style: {style} | Audience: {audience}")
+        logger.info(f"Generating dialogue with {model}...")
+        logger.info(f"   Style: {style} | Audience: {audience}")
         if custom_instructions:
-            print(f"   Custom: {custom_instructions[:60]}{'...' if len(custom_instructions) > 60 else ''}")
-        print(f"   Input: {len(text)} chars → Max tokens: {max_tokens}")
+            logger.info(f"   Custom: {custom_instructions[:60]}{'...' if len(custom_instructions) > 60 else ''}")
+        logger.info(f"   Input: {len(text)} chars -> Max tokens: {max_tokens}")
 
-        # Stream the dialogue generation with live preview
+        # Stream the dialogue generation with live preview (only at verbosity >= 2)
         dialogue_chunks = []
         current_preview = ""
 
-        if RICH_AVAILABLE:
+        if RICH_AVAILABLE and verbosity >= 2:
+            # Use Rich Live preview for visual feedback
             console = Console(force_terminal=True)
             with Live("", console=console) as live:
                 stream = client.chat.completions.create(
@@ -282,7 +291,7 @@ def generate_dialogue(
                         preview_text.append(last_line, style="white")
                         live.update(preview_text)
         else:
-            # Fallback without rich
+            # Silent generation (no live preview)
             stream = client.chat.completions.create(
                 model=model,
                 messages=[
@@ -299,19 +308,19 @@ def generate_dialogue(
                     dialogue_chunks.append(chunk.choices[0].delta.content)
 
         dialogue = "".join(dialogue_chunks)
-        print(f"✅ Generated {len(dialogue)} characters of dialogue")
+        logger.info(f"Generated {len(dialogue)} characters of dialogue")
 
         # Validate and clean the dialogue format
         try:
             cleaned_dialogue = validate_and_clean_dialogue(dialogue)
             removed_lines = len(dialogue.split('\n')) - len(cleaned_dialogue.split('\n'))
             if removed_lines > 0:
-                print(f"🧹 Cleaned format: removed {removed_lines} non-dialogue lines")
+                logger.info(f"Cleaned format: removed {removed_lines} non-dialogue lines")
             return cleaned_dialogue
         except ValueError as e:
-            print(f"⚠️  Warning: {e}")
-            print("Raw dialogue (first 500 chars):")
-            print(dialogue[:500])
+            logger.warning(f"Warning: {e}")
+            logger.warning("Raw dialogue (first 500 chars):")
+            logger.warning(dialogue[:500])
             raise
 
     except Exception as e:

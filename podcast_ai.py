@@ -12,27 +12,29 @@ from pathlib import Path
 from src.utils import extract_text
 from src.dialogue import generate_dialogue
 from src.audio import generate_podcast_audio, DEFAULT_VOICES
+from src.logger import setup_logger, get_logger
 
 
 def check_api_keys():
     """Check if required API keys are set in environment."""
+    logger = get_logger()
     missing_keys = []
 
     if not os.environ.get('OPENAI_API_KEY'):
         missing_keys.append('OPENAI_API_KEY')
 
     # Mistral is optional (only needed for PDFs)
-    mistral_status = "✅ Set" if os.environ.get('MISTRAL_API_KEY') else "⚠️  Not set (optional, needed for PDFs)"
+    mistral_status = "[OK]" if os.environ.get('MISTRAL_API_KEY') else "[WARN] Not set (optional, needed for PDFs)"
 
     if missing_keys:
-        print("❌ Error: Required API keys not found in environment")
-        print(f"\nMissing: {', '.join(missing_keys)}")
-        print("\nPlease set them:")
-        print("  export OPENAI_API_KEY='sk-...'")
-        print("  export MISTRAL_API_KEY='...'  # Optional, for PDF processing")
+        logger.error("Required API keys not found in environment")
+        logger.error(f"\nMissing: {', '.join(missing_keys)}")
+        logger.error("\nPlease set them:")
+        logger.error("  export OPENAI_API_KEY='sk-...'")
+        logger.error("  export MISTRAL_API_KEY='...'  # Optional, for PDF processing")
         sys.exit(1)
 
-    print(f"🔑 API Keys: OPENAI_API_KEY ✅ | MISTRAL_API_KEY {mistral_status}")
+    logger.info(f"API Keys: OPENAI_API_KEY [OK] | MISTRAL_API_KEY {mistral_status}")
 
 
 def main():
@@ -116,12 +118,29 @@ Default voices: HOST1=nova, HOST2=echo
         help='Additional instructions for the podcast generation (e.g., "focus on practical examples", "emphasize challenges", "keep it light and humorous")'
     )
 
+    parser.add_argument(
+        '--minimal',
+        action='store_true',
+        help='Minimal output: only milestones and final path (no spinners/progress)'
+    )
+
+    parser.add_argument(
+        '--silent',
+        action='store_true',
+        help='Silent mode: suppress all output except errors'
+    )
+
     args = parser.parse_args()
 
+    # Setup logging based on verbosity flags
+    verbosity = 0 if args.silent else (1 if args.minimal else 2)
+    setup_logger(verbosity)
+    logger = get_logger()
+
     # Header
-    print("=" * 60)
-    print("🎙️  Podcast AI - Document to Podcast Converter")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Podcast AI - Document to Podcast Converter")
+    logger.info("=" * 60)
 
     # Check API keys
     check_api_keys()
@@ -129,53 +148,55 @@ Default voices: HOST1=nova, HOST2=echo
     # Verify input files exist
     for filepath in args.inputs:
         if not Path(filepath).exists():
-            print(f"❌ Error: File not found: {filepath}")
+            logger.error(f"File not found: {filepath}")
             sys.exit(1)
 
     try:
         # Step 1: Extract text from documents
-        print(f"\n📚 Step 1/3: Reading {len(args.inputs)} document(s)...")
-        text = extract_text(args.inputs)
-        print(f"✅ Extracted {len(text)} characters")
+        logger.milestone(f"\nStep 1/3: Reading {len(args.inputs)} document(s)...")
+        text = extract_text(args.inputs, verbosity=verbosity)
+        logger.info(f"Extracted {len(text)} characters")
 
         # Step 2: Generate dialogue
-        print(f"\n🎭 Step 2/3: Generating dialogue...")
+        logger.milestone(f"\nStep 2/3: Generating dialogue...")
         dialogue = generate_dialogue(
             text,
             model=args.model,
             style=args.style,
             audience=args.audience,
-            custom_instructions=args.instructions
+            custom_instructions=args.instructions,
+            verbosity=verbosity
         )
 
         # Optionally save dialogue
         if args.save_dialogue:
             dialogue_path = Path(args.output).with_suffix('.txt')
             dialogue_path.write_text(dialogue, encoding='utf-8')
-            print(f"💾 Saved dialogue to: {dialogue_path}")
+            logger.milestone(f"Saved dialogue to: {dialogue_path}")
 
         # Step 3: Generate audio
-        print(f"\n🎙️  Step 3/3: Generating podcast audio...")
-        print(f"   Voices: HOST1={args.host1_voice}, HOST2={args.host2_voice}")
+        logger.milestone(f"\nStep 3/3: Generating podcast audio...")
+        logger.info(f"   Voices: HOST1={args.host1_voice}, HOST2={args.host2_voice}")
         output_file = generate_podcast_audio(
             dialogue,
             args.output,
             host1_voice=args.host1_voice,
             host2_voice=args.host2_voice,
-            spatial_separation=args.spatial_separation
+            spatial_separation=args.spatial_separation,
+            verbosity=verbosity
         )
 
         # Success!
-        print("\n" + "=" * 60)
-        print(f"🎉 Podcast created successfully!")
-        print(f"📁 Output: {output_file}")
-        print("=" * 60)
+        logger.milestone("\n" + "=" * 60)
+        logger.milestone(f"Podcast created successfully!")
+        logger.milestone(f"Output: {output_file}")
+        logger.milestone("=" * 60)
 
     except KeyboardInterrupt:
-        print("\n\n⚠️  Interrupted by user")
+        logger.error("\n\nInterrupted by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n\n❌ Error: {e}")
+        logger.error(f"\n\nError: {e}")
         sys.exit(1)
 
 

@@ -9,6 +9,8 @@ from typing import List
 from mistralai import Mistral
 from pypdf import PdfReader
 
+from .logger import get_logger
+
 
 def read_markdown(filepath: str) -> str:
     """
@@ -49,6 +51,8 @@ def read_pdf_with_mistral(filepath: str) -> str:
     Returns:
         String containing the extracted and processed content
     """
+    logger = get_logger()
+
     # First extract raw text from PDF
     reader = PdfReader(filepath)
     raw_text = ""
@@ -58,7 +62,7 @@ def read_pdf_with_mistral(filepath: str) -> str:
     # Try to use Mistral AI for intelligent processing
     api_key = os.environ.get('MISTRAL_API_KEY')
     if not api_key:
-        print("⚠️  MISTRAL_API_KEY not found. Using basic PDF extraction.")
+        logger.warning("MISTRAL_API_KEY not found. Using basic PDF extraction.")
         return raw_text
 
     try:
@@ -82,8 +86,8 @@ def read_pdf_with_mistral(filepath: str) -> str:
         return response.choices[0].message.content
 
     except Exception as e:
-        print(f"⚠️  Mistral AI processing failed: {e}")
-        print("Falling back to basic PDF extraction.")
+        logger.warning(f"Mistral AI processing failed: {e}")
+        logger.warning("Falling back to basic PDF extraction.")
         return raw_text
 
 
@@ -118,25 +122,27 @@ def read_file(filepath: str) -> str:
         raise ValueError(f"Unsupported file type: {extension}")
 
 
-def extract_text(filepaths: List[str]) -> str:
+def extract_text(filepaths: List[str], verbosity: int = 2) -> str:
     """
     Extract and concatenate text from multiple files.
 
     Args:
         filepaths: List of file paths to process
+        verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)
 
     Returns:
         Concatenated string of all file contents
     """
+    logger = get_logger()
     texts = []
 
     for filepath in filepaths:
-        print(f"📄 Reading: {filepath}")
+        logger.info(f"Reading: {filepath}")
         try:
             content = read_file(filepath)
             texts.append(f"=== {Path(filepath).name} ===\n\n{content}\n\n")
         except Exception as e:
-            print(f"❌ Error reading {filepath}: {e}")
+            logger.error(f"Error reading {filepath}: {e}")
             continue
 
     if not texts:
