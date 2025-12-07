@@ -13,12 +13,12 @@ from src.utils import extract_text
 from src.dialogue import generate_dialogue
 from src.planning import generate_plan
 from src.audio import generate_podcast_audio, DEFAULT_VOICES
-from src.logger import setup_logger, get_logger
+from src.logger import setup_logger, get_logger, color_metric, color_cost
 
 
 def log_usage_and_cost(usage_dict: dict, model: str, verbosity: int):
     """
-    Calculate and log token usage and costs.
+    Calculate and log token usage and costs with color formatting.
 
     GPT-5-mini pricing: $0.25/1M input, $2.00/1M output
     """
@@ -35,7 +35,11 @@ def log_usage_and_cost(usage_dict: dict, model: str, verbosity: int):
     output_cost = (output_tokens / 1_000_000) * 2.00
     total_cost = input_cost + output_cost
 
-    logger.milestone(f"   Tokens: {input_tokens:,} in, {output_tokens:,} out, {total_tokens:,} total | Cost: ${total_cost:.4f}")
+    # Format with colors: cyan for tokens, green for cost
+    tokens_text = f"Tokens: {color_metric(f'{input_tokens:,}')} in, {color_metric(f'{output_tokens:,}')} out, {color_metric(f'{total_tokens:,}')} total"
+    cost_text = f"Cost: {color_cost(f'${total_cost:.4f}')}"
+
+    logger.milestone(f"   {tokens_text} | {cost_text}")
 
 
 def check_api_keys():
