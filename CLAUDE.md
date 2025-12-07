@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **podcast-ai** (branded as `gencast`) is a Python CLI tool that generates conversational podcasts from documents using AI. It's a cost-effective, customizable alternative to NotebookLM, featuring multiple podcast styles, audience levels, spatial audio, and automatic subtitle generation.
 
-**User Context**: Created for Mae Capacite (C21348423), Year 4 Computer Science student at TU Dublin, for generating podcasts from lecture materials with neurodivergent-friendly features.
+**User Context**: Created for Mae Capacite, Year 4 Computer Science student at TU Dublin, for generating podcasts from lecture materials with neurodivergent-friendly features.
 
 ## Installation & Setup
 

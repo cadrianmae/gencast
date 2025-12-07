@@ -204,7 +204,7 @@ ruff check .
 
 ## Acknowledgements
 
-Created by Mae Capacite (C21348423) as a more affordable, customisable alternative to NotebookLM for generating educational podcasts from lecture materials.
+Created by Mae Capacite as a more affordable, customisable alternative to NotebookLM for generating educational podcasts from lecture materials.
 
 ## License
 
