@@ -11,6 +11,7 @@ from pathlib import Path
 
 from src.utils import extract_text
 from src.dialogue import generate_dialogue
+from src.planning import generate_plan
 from src.audio import generate_podcast_audio, DEFAULT_VOICES
 from src.logger import setup_logger, get_logger
 
@@ -119,6 +120,18 @@ Default voices: HOST1=nova, HOST2=echo
     )
 
     parser.add_argument(
+        '--with-planning',
+        action='store_true',
+        help='Generate podcast plan before dialogue for comprehensive coverage'
+    )
+
+    parser.add_argument(
+        '--save-plan',
+        action='store_true',
+        help='Save generated plan to text file'
+    )
+
+    parser.add_argument(
         '--minimal',
         action='store_true',
         help='Minimal output: only milestones and final path (no spinners/progress)'
@@ -152,19 +165,58 @@ Default voices: HOST1=nova, HOST2=echo
             sys.exit(1)
 
     try:
+        # Determine total steps based on planning flag
+        total_steps = 4 if args.with_planning else 3
+        current_step = 0
+
         # Step 1: Extract text from documents
-        logger.milestone(f"\nStep 1/3: Reading {len(args.inputs)} document(s)...")
+        current_step += 1
+        logger.milestone(f"\nStep {current_step}/{total_steps}: Reading {len(args.inputs)} document(s)...")
         text = extract_text(args.inputs, verbosity=verbosity)
         logger.info(f"Extracted {len(text)} characters")
 
-        # Step 2: Generate dialogue
-        logger.milestone(f"\nStep 2/3: Generating dialogue...")
+        # Step 2 (optional): Generate podcast plan
+        plan = None
+        if args.with_planning:
+            current_step += 1
+            try:
+                logger.milestone(f"\nStep {current_step}/{total_steps}: Generating podcast plan...")
+                plan = generate_plan(
+                    text,
+                    model=args.model,
+                    audience=args.audience,
+                    custom_instructions=args.instructions,
+                    verbosity=verbosity
+                )
+
+                # Display plan to user
+                logger.info(f"\n{'=' * 60}")
+                logger.info("Generated Plan:")
+                logger.info(f"{'=' * 60}")
+                logger.info(plan)
+                logger.info(f"{'=' * 60}\n")
+
+                # Optionally save plan
+                if args.save_plan:
+                    plan_path = Path(args.output).with_suffix('.plan.txt')
+                    plan_path.write_text(plan, encoding='utf-8')
+                    logger.milestone(f"Saved plan to: {plan_path}")
+
+            except Exception as e:
+                logger.warning(f"Plan generation failed: {e}")
+                logger.warning("Proceeding without plan...")
+                plan = None
+
+        # Step 3: Generate dialogue
+        current_step += 1
+        logger.milestone(f"\nStep {current_step}/{total_steps}: Generating dialogue...")
         dialogue = generate_dialogue(
             text,
             model=args.model,
             style=args.style,
             audience=args.audience,
             custom_instructions=args.instructions,
+            plan=plan,
             verbosity=verbosity
         )
 
@@ -174,8 +226,9 @@ Default voices: HOST1=nova, HOST2=echo
             dialogue_path.write_text(dialogue, encoding='utf-8')
             logger.milestone(f"Saved dialogue to: {dialogue_path}")
 
-        # Step 3: Generate audio
-        logger.milestone(f"\nStep 3/3: Generating podcast audio...")
+        # Step 4: Generate audio
+        current_step += 1
+        logger.milestone(f"\nStep {current_step}/{total_steps}: Generating podcast audio...")
         logger.info(f"   Voices: HOST1={args.host1_voice}, HOST2={args.host2_voice}")
         output_file = generate_podcast_audio(
             dialogue,

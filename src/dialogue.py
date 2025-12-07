@@ -202,6 +202,7 @@ def generate_dialogue(
     style: str = "educational",
     audience: str = "general",
     custom_instructions: str = None,
+    plan: str = None,
     verbosity: int = 2
 ) -> str:
     """
@@ -213,6 +214,7 @@ def generate_dialogue(
         style: Podcast style (educational, interview, casual, debate)
         audience: Target audience (general, technical, academic, beginner)
         custom_instructions: Additional custom instructions to append to the prompt
+        plan: Optional podcast plan outline to guide dialogue generation
         verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)
 
     Returns:
@@ -238,6 +240,11 @@ def generate_dialogue(
     # Add custom instructions if provided
     if custom_instructions:
         full_prompt += f"\n\nAdditional instructions: {custom_instructions}"
+
+    # Add plan context if provided
+    if plan:
+        full_prompt += f"\n\nPodcast Plan to Follow:\n{plan}"
+        full_prompt += "\n\nGenerate dialogue that comprehensively covers all topics in the plan."
 
     # Calculate appropriate max_tokens based on input length
     max_tokens = calculate_max_tokens(len(text))
