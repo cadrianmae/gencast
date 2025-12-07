@@ -155,7 +155,8 @@ def generate_plan(
                         {"role": "system", "content": planning_prompt},
                         {"role": "user", "content": f"Analyze this content and create a comprehensive podcast plan:\n\n{text}"}
                     ],
-                    "stream": True
+                    "stream": True,
+                    "stream_options": {"include_usage": True}
                 }
                 # Only add max_tokens if limited
                 if max_tokens is not None:
@@ -196,7 +197,8 @@ def generate_plan(
                     {"role": "system", "content": planning_prompt},
                     {"role": "user", "content": f"Analyze this content and create a comprehensive podcast plan:\n\n{text}"}
                 ],
-                "stream": True
+                "stream": True,
+                "stream_options": {"include_usage": True}
             }
             # Only add max_tokens if limited
             if max_tokens is not None:

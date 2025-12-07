@@ -281,7 +281,8 @@ def generate_dialogue(
                         {"role": "system", "content": full_prompt},
                         {"role": "user", "content": f"Convert this content into a podcast dialogue:\n\n{text}"}
                     ],
-                    "stream": True
+                    "stream": True,
+                    "stream_options": {"include_usage": True}
                 }
                 # Only add max_tokens if limited
                 if max_tokens is not None:
@@ -322,7 +323,8 @@ def generate_dialogue(
                     {"role": "system", "content": full_prompt},
                     {"role": "user", "content": f"Convert this content into a podcast dialogue:\n\n{text}"}
                 ],
-                "stream": True
+                "stream": True,
+                "stream_options": {"include_usage": True}
             }
             # Only add max_tokens if limited
             if max_tokens is not None:
