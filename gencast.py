@@ -74,7 +74,7 @@ def log_usage_and_cost(usage_dict: Dict[str, int], model: str, verbosity: int) -
         output_cost = (output_tokens / 1_000_000) * output_price
         total_cost = input_cost + output_cost
 
-        cost_text = f"Cost: {color_cost(f'${total_cost:.4f}')}"
+        cost_text = f"Cost: {color_cost(f'${total_cost:.4f}')} (est.)"
         logger.milestone(f"   {tokens_text} | {cost_text}")
     else:
         # Unknown model - show tokens only
