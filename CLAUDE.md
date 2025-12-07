@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**podcast-ai** (branded as `gencast`) is a Python CLI tool that generates conversational podcasts from documents using AI. It's a cost-effective, customizable alternative to NotebookLM, featuring multiple podcast styles, audience levels, spatial audio, and automatic subtitle generation.
+**gencast** is a Python CLI tool that generates conversational podcasts from documents using AI. It's a cost-effective, customizable alternative to NotebookLM, featuring multiple podcast styles, audience levels, spatial audio, and automatic subtitle generation.
 
 **User Context**: Created for Mae Capacite, Year 4 Computer Science student at TU Dublin, for generating podcasts from lecture materials with neurodivergent-friendly features.
 
@@ -17,8 +17,9 @@ source venv/bin/activate
 pip install -e .  # Editable install
 
 # Required API keys
-export OPENAI_API_KEY="sk-..."
-export MISTRAL_API_KEY="..."  # Optional, only for PDF processing
+export OPENAI_API_KEY="sk-..."  # Required (for TTS and Whisper)
+export ANTHROPIC_API_KEY="sk-ant-..."  # Optional (for Claude models)
+export MISTRAL_API_KEY="..."  # Optional (for PDF processing)
 
 # Command now available system-wide (when venv active)
 gencast --help
@@ -50,38 +51,55 @@ gencast doc.md --spatial-separation 0.6
 # Save dialogue for review before audio generation
 gencast doc.md --save-dialogue
 
-# All options
+# Multi-provider support (OpenAI, Anthropic, 100+ others)
+gencast doc.md --model gpt-5-mini  # Default
+gencast doc.md --model gpt-4o-mini
+gencast doc.md --model anthropic/claude-sonnet-4.5
+
+# Planning feature (comprehensive coverage)
+gencast doc.md --with-planning --save-plan
+
+# All options combined
 gencast input.md -o output.mp3 \
+  --model anthropic/claude-sonnet-4.5 \
   --style casual \
   --audience beginner \
   --host1-voice nova \
   --host2-voice echo \
   --spatial-separation 0.4 \
-  --model gpt-5-mini \
+  --with-planning \
+  --save-plan \
   --save-dialogue
+
+# Verbosity control
+gencast doc.md --minimal  # Minimal output
+gencast doc.md --silent   # Silent mode (errors only)
 ```
 
 ## Architecture
 
 ```
-podcast-ai/
-├── podcast_ai.py          # Main CLI orchestration
+gencast/
+├── gencast.py             # Main CLI orchestration
 ├── __init__.py            # Package entry point
 ├── src/
 │   ├── utils.py           # Document reading (MD, TXT, PDF)
-│   ├── dialogue.py        # GPT-4 dialogue generation with streaming
-│   └── audio.py           # TTS + spatial audio + Whisper SRT
-├── prompts/               # 4 podcast style templates
+│   ├── dialogue.py        # Multi-provider dialogue (LiteLLM)
+│   ├── planning.py        # Podcast planning (LiteLLM)
+│   ├── audio.py           # TTS + spatial audio + Whisper (OpenAI)
+│   └── logger.py          # Logging with verbosity levels
+├── prompts/               # Podcast style and planning templates
 │   ├── educational.txt    # Friendly hosts explaining concepts
 │   ├── interview.txt      # HOST1=interviewer, HOST2=expert
 │   ├── casual.txt         # Informal friends chatting
-│   └── debate.txt         # Two perspectives, contrasting views
+│   ├── debate.txt         # Two perspectives, contrasting views
+│   └── planning.txt       # Podcast structure planning prompt
 ├── audiences/             # 4 audience modifier templates
 │   ├── general.txt        # Clear, accessible language
 │   ├── technical.txt      # Deep-dive with technical terms
 │   ├── academic.txt       # Scholarly tone, theoretical depth
 │   └── beginner.txt       # ELI5 style, lots of analogies
-├── pyproject.toml         # Package config + CLI entry point
+├── pyproject.toml         # Package config + CLI entry point + basedpyright
 └── requirements.txt       # Dependencies
 ```
 
@@ -92,16 +110,17 @@ podcast-ai/
 - `extract_text(filepaths) -> str`: Concatenates multiple files
 - PDF: Mistral AI for intelligent extraction → pypdf fallback
 
-**Business Logic** (`src/dialogue.py`, `src/audio.py`):
+**Business Logic** (`src/dialogue.py`, `src/planning.py`, `src/audio.py`):
 - Never prints (except progress indicators)
 - Returns data structures, not side effects
-- `generate_dialogue(text, model, style, audience) -> str`
+- `generate_plan(text, model, audience, ...) -> Tuple[str, Dict]`
+- `generate_dialogue(text, model, style, audience, plan, ...) -> Tuple[str, Dict]`
 - `generate_podcast_audio(dialogue, output_path, ...) -> str`
 
-**Interface** (`podcast_ai.py`):
+**Interface** (`gencast.py`):
 - CLI argument parsing, orchestration only
 - User-facing messages and error handling
-- Pipeline: extract → dialogue → audio → subtitles
+- Pipeline: extract → [planning] → dialogue → audio → subtitles
 
 ## Key Technical Details
 
@@ -126,15 +145,27 @@ prompt_path = Path(__file__).parent.parent / "prompts" / f"{style}.txt"
 ### Dialogue Generation with Streaming
 
 ```python
-# OpenAI streaming API with Rich live preview
-stream = client.chat.completions.create(
-    model="gpt-5-mini",  # Default model
-    messages=[{"role": "system", "content": full_prompt}, ...],
-    temperature=0.8,  # Creative but coherent
-    max_tokens=4000,
-    stream=True  # Enables live preview
-)
+# Multi-provider streaming via LiteLLM
+from litellm import completion
+
+request_params = {
+    "model": "gpt-5-mini",  # Or "anthropic/claude-sonnet-4.5", etc.
+    "messages": [{"role": "system", "content": full_prompt}, ...],
+    "stream": True,  # Enables live preview
+    "api_key": api_key
+}
+# Only add max_tokens if limited (None = unlimited)
+if max_tokens is not None:
+    request_params["max_tokens"] = max_tokens
+
+stream = completion(**request_params)
 ```
+
+**Multi-Provider Support**:
+- Supports 100+ AI providers via LiteLLM
+- OpenAI: `gpt-5-mini`, `gpt-4o`, `gpt-4o-mini`
+- Anthropic: `anthropic/claude-sonnet-4.5`, `anthropic/claude-opus-4.5`
+- See [LiteLLM providers](https://docs.litellm.ai/docs/providers) for full list
 
 **Output format**:
 ```
@@ -219,14 +250,30 @@ else:
 
 ## API Usage & Costs
 
-| API | Purpose | Model | Cost per Podcast |
-|-----|---------|-------|------------------|
-| OpenAI GPT | Dialogue | `gpt-5-mini` | ~$0.07-0.17 |
-| OpenAI TTS | Audio | `tts-1-hd` | ~$0.06-0.10 |
-| OpenAI Whisper | Subtitles | `whisper-1` | ~$0.01 |
-| Mistral AI | PDF (optional) | `mistral-large-latest` | ~$0.01 |
+### Hybrid Architecture
 
-**Total**: ~$0.15-0.29 per 3-minute podcast
+**LiteLLM** (chat completions):
+- `dialogue.py` and `planning.py` use LiteLLM for multi-provider support
+- Supports OpenAI, Anthropic, and 100+ other providers
+- Preserves streaming UX for neurodivergent-friendly progress feedback
+
+**OpenAI SDK** (audio processing):
+- `audio.py` uses OpenAI SDK for TTS and Whisper
+- These APIs are not yet supported by LiteLLM
+
+### Cost Estimates (3-minute podcast, ~1500 words)
+
+| API | Purpose | Model | Cost |
+|-----|---------|-------|------|
+| **Dialogue/Planning** (flexible) | Chat completions | `gpt-5-mini` (default) | ~$0.02-0.05 |
+| | | `gpt-4o-mini` | ~$0.02-0.05 |
+| | | `anthropic/claude-sonnet-4.5` | ~$0.15-0.30 |
+| **Audio** (OpenAI only) | TTS | `tts-1-hd` | ~$0.06-0.10 |
+| | Subtitles | `whisper-1` | ~$0.01 |
+| **PDF** (optional) | Extraction | `mistral-large-latest` | ~$0.01 |
+
+**Total**: ~$0.10-0.17 per podcast (with GPT-5-mini/GPT-4o-mini)
+**Total**: ~$0.23-0.41 per podcast (with Claude Sonnet 4.5)
 
 ## Testing Strategy
 
@@ -290,16 +337,17 @@ os.unlink(temp_path)  # Clean up
 ```
 
 ### 5. Package Entry Point Chain
-1. `pyproject.toml`: `gencast = podcast_ai:main`
-2. `__init__.py`: Imports `main` from `podcast_ai.py` module
-3. `podcast_ai.py`: Defines `main()` function
+1. `pyproject.toml`: `gencast = gencast:main`
+2. `__init__.py`: Imports `main` from `gencast.py` module
+3. `gencast.py`: Defines `main()` function
 
-Requires `[tool.setuptools] py-modules = ["podcast_ai"]` in pyproject.toml
+Requires `[tool.setuptools] py-modules = ["gencast"]` in pyproject.toml
 
 ## Dependencies
 
 **Required**:
-- `openai>=1.0.0` - GPT-4, TTS, Whisper APIs
+- `openai>=1.0.0` - TTS and Whisper APIs (audio processing)
+- `litellm>=1.30.0` - Multi-provider AI chat completions
 - `pydub>=0.25.1` - Audio manipulation (requires ffmpeg system dependency)
 - `audioop-lts>=0.2.0` - Python 3.13+ compatibility fix
 - `rich>=13.0.0` - Progress bars (graceful degradation if missing)
@@ -308,17 +356,39 @@ Requires `[tool.setuptools] py-modules = ["podcast_ai"]` in pyproject.toml
 - `mistralai>=1.0.0` - PDF processing (falls back to pypdf)
 - `pypdf>=3.0.0` - Basic PDF extraction
 
+**Development**:
+- `basedpyright>=1.21.0` - Type checking (strict mode, warn-only)
+- `pytest>=7.0.0` - Testing framework
+- `ruff>=0.1.0` - Linting and formatting
+
 **System Dependencies**:
 - `ffmpeg` - Required by pydub for audio processing
 
 ## Code Style
 
 - Clean, readable Python 3.8+
-- Type hints where helpful
+- **Full type hints** using stdlib `typing` and `typing_extensions`
+  - All function parameters and returns typed
+  - `Optional`, `Dict`, `Tuple`, `List`, `Any` used throughout
+  - Type checked with basedpyright (strict mode, warn-only)
 - Docstrings for public functions
 - Single responsibility per function
 - Layer separation: data → business logic → interface
 - Graceful degradation for optional features
+
+### Type Checking
+
+```bash
+# Full project (0 errors, ~360 warnings expected)
+basedpyright
+
+# Single file
+basedpyright src/dialogue.py
+
+# Configuration in pyproject.toml
+# - Strict mode with warn-only enforcement
+# - Errors only for critical issues (optional access, subscript)
+```
 
 ## Critical Reminders
 
@@ -337,8 +407,8 @@ pip install -e .
 
 # System-wide (isolated environment)
 pipx install -e .
-pipx upgrade podcast-ai
-pipx uninstall podcast-ai
+pipx upgrade gencast
+pipx uninstall gencast
 
 # List installed
 pipx list
