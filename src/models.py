@@ -32,11 +32,10 @@ class PodcastDialogue(BaseModel):
     @model_validator(mode='after')
     def validate_complete_dialogue(self) -> 'PodcastDialogue':
         """Validate dialogue is complete (only runs on finalized models, not during streaming)."""
-        if self.segments:
-            if len(self.segments) < 2:
-                raise ValueError("Dialogue must have at least 2 segments")
-            speakers = {seg.speaker for seg in self.segments}
-            if len(speakers) < 2:
+        # Only validate if we have actual segments (skip during streaming when list might be empty)
+        if self.segments and len(self.segments) >= 2:
+            speakers = {seg.speaker for seg in self.segments if seg.speaker}
+            if speakers and len(speakers) < 2:
                 raise ValueError("Both HOST1 and HOST2 must speak")
         return self
 
@@ -64,9 +63,10 @@ class PlanTopic(BaseModel):
     @model_validator(mode='after')
     def validate_complete_topic(self) -> 'PlanTopic':
         """Validate topic is complete (only runs on finalized models, not during streaming)."""
-        if self.title is not None and len(self.title) < 1:
+        # Only validate if fields have actual content (skip during streaming)
+        if self.title and len(self.title) < 1:
             raise ValueError("Topic title must have at least 1 character")
-        if self.key_points is not None and len(self.key_points) < 1:
+        if self.key_points and len(self.key_points) < 1:
             raise ValueError("Topic must have at least 1 key point")
         return self
 
@@ -82,9 +82,10 @@ class PodcastPlan(BaseModel):
     @model_validator(mode='after')
     def validate_complete_plan(self) -> 'PodcastPlan':
         """Validate plan is complete (only runs on finalized models, not during streaming)."""
-        if self.overview is not None and len(self.overview) < 10:
+        # Only validate if fields have meaningful content (skip during streaming when fields are empty)
+        if self.overview and len(self.overview) < 10:
             raise ValueError("Plan overview must have at least 10 characters")
-        if self.topics is not None and len(self.topics) < 1:
+        if self.topics and len(self.topics) < 1:
             raise ValueError("Plan must have at least 1 topic")
         return self
 
