@@ -9,7 +9,7 @@ from typing import Optional, Dict, Tuple
 from litellm import completion
 
 from .logger import get_logger
-from .dialogue import calculate_max_tokens
+from .dialogue import calculate_max_tokens as calculate_dialogue_max_tokens
 
 try:
     from rich.live import Live
@@ -128,6 +128,12 @@ def generate_plan(
     # Add custom instructions if provided
     if custom_instructions:
         planning_prompt += f"\n\nAdditional focus: {custom_instructions}"
+
+    # Calculate dialogue token limit to inform planning
+    dialogue_max_tokens = calculate_dialogue_max_tokens(len(text), unlock_limit=unlock_token_limit)
+    if dialogue_max_tokens:
+        dialogue_minutes = int((dialogue_max_tokens * 4) / 1000)
+        planning_prompt += f"\n\nIMPORTANT: The dialogue generation is limited to approximately {dialogue_minutes} minutes (~{dialogue_max_tokens} tokens). Plan for comprehensive coverage of all topics, but note at the end that the actual podcast will be condensed to this duration. For full coverage of longer content, recommend splitting the material or using --unlock-token-limit."
 
     # Calculate appropriate max_tokens for planning
     max_tokens = calculate_plan_max_tokens(len(text), unlock_limit=unlock_token_limit)
