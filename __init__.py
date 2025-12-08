@@ -3,7 +3,7 @@ gencast - Generate conversational podcasts from documents using AI
 A cost-effective NotebookLM alternative
 """
 
-__version__ = "0.5.3"
+__version__ = "0.6.0"
 __author__ = "Mae Capacite"
 
 # Import main function from the script module

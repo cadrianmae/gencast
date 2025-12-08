@@ -169,11 +169,16 @@ def calculate_max_tokens(input_length: int, scale_factor: float = 2.0, unlock_li
     Uses a configurable scaling factor to generate proportional dialogue output.
     Default scale_factor=2.0 means roughly 2 tokens output per 1 char input.
 
+    Hard limit of 5,000 tokens targets ~20 minutes of podcast duration
+    to prevent model output limits from truncating content. The model is
+    instructed via prompt to naturally conclude within this timeframe.
+
     Example ranges with default scale_factor=2.0:
-    - Small docs (< 1000 chars): 2000-4000 tokens
-    - Medium docs (1000-5000 chars): 4000-10000 tokens
-    - Large docs (5000-8000 chars): 10000-16000 tokens
-    - Very large docs (> 8000 chars): 16000 tokens (capped by default)
+    - Small docs (< 1000 chars): 2000-4000 tokens (~8-16 mins)
+    - Medium docs (1000-2500 chars): 4000-5000 tokens (~16-20 mins)
+    - Large docs (> 2500 chars): 5000 tokens (~20 mins, capped)
+
+    For longer podcasts, use --unlock-token-limit or plan-based chunking (see issue #2).
 
     Args:
         input_length: Character count of input text
@@ -196,7 +201,9 @@ def calculate_max_tokens(input_length: int, scale_factor: float = 2.0, unlock_li
 
     # Apply floor and ceiling
     max_tokens = max(min_tokens, scaled_tokens)
-    max_tokens = min(max_tokens, 16000)  # Cap at safe limit
+    # Cap at 5000 tokens (~17-20 mins podcast) to prevent model output limit truncation
+    # For longer content, use plan-based chunking (see issue #2)
+    max_tokens = min(max_tokens, 5000)
 
     return max_tokens
 
@@ -257,6 +264,12 @@ def generate_dialogue(
 
     # Calculate appropriate max_tokens based on input length
     max_tokens = calculate_max_tokens(len(text), unlock_limit=unlock_token_limit)
+
+    # Add duration guidance to prompt (targets ~17-20 mins by default)
+    if max_tokens:
+        # Estimate podcast duration: ~1000 chars/min, ~4 chars/token
+        estimated_minutes = int((max_tokens * 4) / 1000)
+        full_prompt += f"\n\nIMPORTANT: Target podcast duration is approximately {estimated_minutes} minutes. Structure the conversation to naturally conclude within this timeframe while covering the key points comprehensively."
 
     try:
         logger.info(f"Generating dialogue with {model}...")

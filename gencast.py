@@ -5,12 +5,12 @@ Author: Mae Capacite
 """
 
 import argparse
-import json
 import os
 import sys
 from pathlib import Path
 from typing import Dict, Optional
 
+from litellm import model_cost
 from src.utils import extract_text
 from src.dialogue import generate_dialogue
 from src.planning import generate_plan
@@ -18,37 +18,28 @@ from src.audio import generate_podcast_audio, DEFAULT_VOICES
 from src.logger import setup_logger, get_logger, color_metric, color_cost
 
 
-def load_pricing() -> Dict:
-    """Load pricing data from pricing.json file."""
-    pricing_path = Path(__file__).parent / "pricing.json"
-    try:
-        with open(pricing_path, 'r') as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-
-def get_model_pricing(model: str, pricing_data: Dict) -> Optional[Dict]:
+def get_model_pricing(model: str) -> Optional[Dict]:
     """
-    Get pricing for a specific model from pricing data.
+    Get pricing for a specific model from LiteLLM's built-in model cost data.
 
     Args:
-        model: Model name (e.g., 'gpt-5-mini', 'anthropic/claude-sonnet-4.5')
-        pricing_data: Loaded pricing dictionary
+        model: Model name (e.g., 'gpt-5-mini', 'anthropic/claude-sonnet-4-5')
 
     Returns:
-        Pricing dict with input_price_per_million and output_price_per_million,
+        Dict with pricing info (input_cost_per_token, output_cost_per_token, etc.),
         or None if model not found
     """
-    chat_models = pricing_data.get('models', {}).get('chat', {})
-    return chat_models.get(model)
+    try:
+        return model_cost.get(model)
+    except Exception:
+        return None
 
 
 def log_usage_and_cost(usage_dict: Dict[str, int], model: str, verbosity: int) -> None:
     """
     Calculate and log token usage and costs with color formatting.
 
-    Loads pricing from pricing.json and falls back to token-only display
+    Uses LiteLLM's built-in model cost data. Falls back to token-only display
     if model pricing is unknown.
     """
     if verbosity < 1 or not usage_dict:
@@ -62,16 +53,15 @@ def log_usage_and_cost(usage_dict: Dict[str, int], model: str, verbosity: int) -
     # Format tokens display
     tokens_text = f"Tokens: {color_metric(f'{input_tokens:,}')} in, {color_metric(f'{output_tokens:,}')} out, {color_metric(f'{total_tokens:,}')} total"
 
-    # Try to load pricing and calculate cost
-    pricing_data = load_pricing()
-    model_pricing = get_model_pricing(model, pricing_data)
+    # Try to get pricing from LiteLLM and calculate cost
+    model_pricing = get_model_pricing(model)
 
-    if model_pricing:
-        # Calculate cost with loaded pricing
-        input_price = model_pricing['input_price_per_million']
-        output_price = model_pricing['output_price_per_million']
-        input_cost = (input_tokens / 1_000_000) * input_price
-        output_cost = (output_tokens / 1_000_000) * output_price
+    if model_pricing and 'input_cost_per_token' in model_pricing:
+        # Calculate cost using LiteLLM's pricing (cost per token)
+        input_cost_per_token = model_pricing.get('input_cost_per_token', 0)
+        output_cost_per_token = model_pricing.get('output_cost_per_token', 0)
+        input_cost = input_tokens * input_cost_per_token
+        output_cost = output_tokens * output_cost_per_token
         total_cost = input_cost + output_cost
 
         cost_text = f"Cost: {color_cost(f'${total_cost:.4f}')} (est.)"
