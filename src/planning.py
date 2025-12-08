@@ -1,15 +1,16 @@
 """
-Podcast planning using OpenAI GPT-4o-mini.
+Podcast planning using LiteLLM with Instructor for structured outputs.
 Generates structured outline before dialogue generation for comprehensive coverage.
 """
 
-import os
 from pathlib import Path
 from typing import Optional, Dict, Tuple
-from litellm import completion
+import instructor
+from litellm import completion as litellm_completion
 
 from .logger import get_logger
 from .dialogue import calculate_max_tokens as calculate_dialogue_max_tokens
+from .models import PodcastPlan
 
 try:
     from rich.live import Live
@@ -53,27 +54,27 @@ def calculate_plan_max_tokens(input_length: int, unlock_limit: bool = False) -> 
     """
     Calculate appropriate max_tokens for plan generation.
 
-    Plans are outlines (less verbose than dialogue), so use ~30% of
-    what dialogue generation would use.
+    With structured outputs (Pydantic models), plans need ~50% of dialogue tokens
+    due to JSON structure overhead. Minimum 1500 tokens for basic plans.
 
     Args:
         input_length: Character count of input text
         unlock_limit: If True, returns None (no token limit)
 
     Returns:
-        Appropriate max_tokens value for planning (600-2000 range), or None if unlocked
+        Appropriate max_tokens value for planning (1500-3000 range), or None if unlocked
     """
     if unlock_limit:
         return None  # No limit - let model use its maximum
 
-    dialogue_tokens = calculate_max_tokens(input_length, unlock_limit=False)
+    dialogue_tokens = calculate_dialogue_max_tokens(input_length, unlock_limit=False)
     if dialogue_tokens is None:
         return None
-    plan_tokens = int(dialogue_tokens * 0.3)
+    plan_tokens = int(dialogue_tokens * 0.5)  # Increased from 0.3 for structured outputs
 
-    # Plan should typically be 600-2000 tokens
-    plan_tokens = max(600, plan_tokens)
-    plan_tokens = min(plan_tokens, 2000)
+    # Plan should typically be 1500-3000 tokens (increased for JSON structure)
+    plan_tokens = max(1500, plan_tokens)
+    plan_tokens = min(plan_tokens, 3000)
 
     return plan_tokens
 
@@ -87,27 +88,27 @@ def generate_plan(
     verbosity: int = 2
 ) -> Tuple[str, Dict[str, int]]:
     """
-    Generate podcast structure plan from document text using LiteLLM.
+    Generate podcast structure plan from document text using LiteLLM + Instructor.
 
     Creates a comprehensive outline that will be used to guide dialogue
     generation, ensuring thorough coverage of all source material.
 
     Args:
         text: The extracted document text to analyze
-        model: OpenAI model to use (default: gpt-5-mini)
+        model: Model to use (default: anthropic/claude-sonnet-4-5)
         audience: Target audience (general, technical, academic, beginner)
         custom_instructions: Additional instructions for planning focus
         unlock_token_limit: Remove token cap (default: False)
         verbosity: Logging verbosity level (0=silent, 1=minimal, 2=normal)
 
     Returns:
-        Tuple of (plan_text, usage_dict) where usage_dict contains:
+        Tuple of (plan_markdown, usage_dict) where usage_dict contains:
             - prompt_tokens: Input token count
             - completion_tokens: Output token count
             - total_tokens: Total token count
 
     Raises:
-        ValueError: If OPENAI_API_KEY is not set
+        ValueError: If required API key is not set
         Exception: If API call fails
     """
     logger = get_logger()
@@ -145,92 +146,81 @@ def generate_plan(
             logger.info(f"   Focus: {custom_instructions[:60]}{'...' if len(custom_instructions) > 60 else ''}")
         logger.info(f"   Input: {len(text)} chars -> Max tokens: {max_tokens if max_tokens else 'unlimited'}")
 
-        # Stream the plan generation with live preview
-        plan_chunks = []
-        current_preview = ""
-        usage_data = None
+        # Create instructor client
+        client = instructor.from_litellm(litellm_completion)
+
+        # Build request parameters
+        request_params = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": planning_prompt},
+                {"role": "user", "content": f"Analyze this content and create a comprehensive podcast plan:\n\n{text}"}
+            ],
+        }
+        # Only add max_tokens if limited
+        if max_tokens is not None:
+            request_params["max_tokens"] = max_tokens
 
         if RICH_AVAILABLE and verbosity >= 2:
-            # Use Rich Live preview for visual feedback
+            # Use Rich Live preview for visual feedback with streaming
+            from instructor import Partial
+
             console = Console(force_terminal=True)
             with Live("", console=console) as live:
-                # Build request parameters
-                request_params = {
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": planning_prompt},
-                        {"role": "user", "content": f"Analyze this content and create a comprehensive podcast plan:\n\n{text}"}
-                    ],
-                    "stream": True,
-                    "stream_options": {"include_usage": True}
-                }
-                # Only add max_tokens if limited
-                if max_tokens is not None:
-                    request_params["max_tokens"] = max_tokens
+                request_params["stream"] = True
+                request_params["response_model"] = Partial[PodcastPlan]
 
-                stream = completion(**request_params)
+                stream = client.chat.completions.create(**request_params)
 
-                for chunk in stream:
-                    # Capture usage data from final chunk
-                    if hasattr(chunk, 'usage') and chunk.usage:
-                        usage_data = chunk.usage
+                partial_plan = None
+                for partial_plan in stream:
+                    if partial_plan.topics:
+                        topic_count = len(partial_plan.topics)
+                        last_title = partial_plan.topics[-1].title if partial_plan.topics else "..."
 
-                    if chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        plan_chunks.append(content)
-                        current_preview += content
-
-                        # Extract last line for preview
-                        lines = current_preview.strip().split('\n')
-                        last_line = lines[-1] if lines else ""
-
-                        # Truncate to fit terminal width
-                        prefix = "Planning: "
-                        max_line_length = max(20, console.width - len(prefix) - 5)
-                        if len(last_line) > max_line_length:
-                            last_line = last_line[:max_line_length] + "..."
+                        # Truncate title to fit terminal width
+                        prefix = f"Planning ({topic_count} topics): "
+                        max_title_length = max(20, console.width - len(prefix) - 5)
+                        if len(last_title) > max_title_length:
+                            last_title = last_title[:max_title_length] + "..."
 
                         preview_text = Text()
                         preview_text.append(prefix, style="bold cyan")
-                        preview_text.append(last_line, style="white")
+                        preview_text.append(last_title, style="white")
                         live.update(preview_text)
-        else:
-            # Silent generation (no live preview)
-            # Build request parameters
-            request_params = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": planning_prompt},
-                    {"role": "user", "content": f"Analyze this content and create a comprehensive podcast plan:\n\n{text}"}
-                ],
-                "stream": True,
-                "stream_options": {"include_usage": True}
+
+                # Final plan is the last partial received
+                if partial_plan is None:
+                    raise Exception("No plan generated from streaming")
+                final_plan = partial_plan
+
+            # Extract usage from streaming (may not be available)
+            usage_dict = {
+                'prompt_tokens': 0,
+                'completion_tokens': 0,
+                'total_tokens': 0
             }
-            # Only add max_tokens if limited
-            if max_tokens is not None:
-                request_params["max_tokens"] = max_tokens
+            logger.warning("Token usage tracking not available with instructor streaming mode")
 
-            stream = completion(**request_params)
+        else:
+            # Non-streaming mode with token usage tracking
+            request_params["stream"] = False
+            request_params["response_model"] = PodcastPlan
 
-            for chunk in stream:
-                # Capture usage data from final chunk
-                if hasattr(chunk, 'usage') and chunk.usage:
-                    usage_data = chunk.usage
+            final_plan, raw_completion = client.chat.completions.create_with_completion(**request_params)
 
-                if chunk.choices[0].delta.content:
-                    plan_chunks.append(chunk.choices[0].delta.content)
+            # Extract usage from raw completion
+            usage_dict = {
+                'prompt_tokens': raw_completion.usage.prompt_tokens if hasattr(raw_completion, 'usage') else 0,
+                'completion_tokens': raw_completion.usage.completion_tokens if hasattr(raw_completion, 'usage') else 0,
+                'total_tokens': raw_completion.usage.total_tokens if hasattr(raw_completion, 'usage') else 0
+            }
 
-        plan = "".join(plan_chunks)
-        logger.info(f"Generated plan: {len(plan)} characters")
+        # Convert structured plan to markdown
+        plan_markdown = final_plan.to_markdown()
+        logger.info(f"Generated plan: {len(final_plan.topics)} topics, {len(plan_markdown)} characters")
 
-        # Prepare usage dict
-        usage_dict = {
-            'prompt_tokens': usage_data.prompt_tokens if usage_data else 0,
-            'completion_tokens': usage_data.completion_tokens if usage_data else 0,
-            'total_tokens': usage_data.total_tokens if usage_data else 0
-        }
-
-        return plan.strip(), usage_dict
+        return plan_markdown, usage_dict
 
     except Exception as e:
         raise Exception(f"Failed to generate plan: {e}")

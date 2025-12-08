@@ -84,8 +84,9 @@ gencast/
 ├── __init__.py            # Package entry point
 ├── src/
 │   ├── utils.py           # Document reading (MD, TXT, PDF)
-│   ├── dialogue.py        # Multi-provider dialogue (LiteLLM)
-│   ├── planning.py        # Podcast planning (LiteLLM)
+│   ├── models.py          # Pydantic models for structured outputs
+│   ├── dialogue.py        # Multi-provider dialogue (LiteLLM + Instructor)
+│   ├── planning.py        # Podcast planning (LiteLLM + Instructor)
 │   ├── audio.py           # TTS + spatial audio + Whisper (OpenAI)
 │   └── logger.py          # Logging with verbosity levels
 ├── prompts/               # Podcast style and planning templates
@@ -121,6 +122,35 @@ gencast/
 - CLI argument parsing, orchestration only
 - User-facing messages and error handling
 - Pipeline: extract → [planning] → dialogue → audio → subtitles
+
+### Structured Output Models (`src/models.py`)
+
+All AI-generated content uses Pydantic models for type-safe, validated outputs:
+
+**Dialogue Models:**
+- `DialogueSegment`: Single host utterance with speaker validation (HOST1/HOST2) and non-empty text
+- `PodcastDialogue`: Complete dialogue with automatic validation (both hosts required)
+  - `to_text_format() -> str`: Converts to HOST1:/HOST2: format for audio.py
+  - `count_segments() -> Dict[str, int]`: Returns segment counts per speaker
+
+**Planning Models:**
+- `PlanTopic`: Single topic with title, key points, and estimated duration
+- `PodcastPlan`: Complete plan with overview, topics, target audience, and duration
+  - `to_markdown() -> str`: Converts to formatted markdown for display
+
+**Why Instructor + Pydantic?**
+- **Validation during generation**: Models validate as the AI generates, with automatic retries (max 3) on validation failures
+- **No regex cleanup**: Replaced `validate_and_clean_dialogue()` (57 lines) - Pydantic handles format enforcement
+- **Type safety**: IDE autocomplete and type checking throughout codebase
+- **Streaming support**: `Partial[Model]` for incremental updates in live previews
+
+**Token Usage Tracking:**
+- Streaming mode: Token usage not available (instructor limitation)
+- Non-streaming mode: `create_with_completion()` returns tuple of (response, raw_completion) with full usage data
+
+**Token Allocation:**
+- Planning: 1500-3000 tokens (50% of dialogue tokens, increased for JSON structure overhead)
+- Dialogue: 2000-5000 tokens (based on input length, targets 17-20 min podcasts)
 
 ## Key Technical Details
 

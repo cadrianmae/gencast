@@ -37,6 +37,7 @@ dependencies = [
     "pypdf>=3.0.0",
     "audioop-lts>=0.2.0",
     "rich>=13.0.0",
+    "instructor>=1.0.0",
 ]
 
 [project.optional-dependencies]
