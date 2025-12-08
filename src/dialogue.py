@@ -1,14 +1,16 @@
 """
-Dialogue generation using OpenAI GPT-4o-mini.
+Dialogue generation using LiteLLM with Instructor for structured outputs.
 Converts document text into natural conversational podcast dialogue.
 """
 
 import os
 from pathlib import Path
 from typing import Optional, Dict, Tuple, Any
-from litellm import completion
+import instructor
+from litellm import completion as litellm_completion
 
 from .logger import get_logger
+from .models import PodcastDialogue
 
 try:
     from rich.live import Live
@@ -77,62 +79,7 @@ def load_prompt(style: str = "educational") -> str:
     return FALLBACK_SYSTEM_PROMPT
 
 
-def validate_and_clean_dialogue(dialogue: str) -> str:
-    """
-    Validate and clean generated dialogue to ensure strict format compliance.
-    Removes any non-dialogue lines and enforces HOST1:/HOST2: format.
-
-    Args:
-        dialogue: Raw generated dialogue text
-
-    Returns:
-        Cleaned dialogue with only valid HOST1:/HOST2: lines
-    """
-    import re
-
-    lines = dialogue.strip().split('\n')
-    cleaned_lines = []
-
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-
-        # Strip markdown formatting
-        # Remove bold: **text** -> text
-        line = re.sub(r'\*\*([^*]+)\*\*', r'\1', line)
-        # Remove italic: *text* or _text_ -> text
-        line = re.sub(r'(?<!\*)\*(?!\*)([^*]+)\*(?!\*)', r'\1', line)
-        line = re.sub(r'_([^_]+)_', r'\1', line)
-        # Remove markdown headers: ## text -> text
-        line = re.sub(r'^#+\s*', '', line)
-
-        # Check if line starts with HOST1: or HOST2:
-        if line.startswith('HOST1:') or line.startswith('HOST2:'):
-            # Remove quotes around dialogue if present
-            line = re.sub(r'^(HOST[12]:)\s*["\'](.+)["\']$', r'\1 \2', line)
-            cleaned_lines.append(line)
-        elif line.startswith('**HOST1:**') or line.startswith('**HOST2:**'):
-            # Handle markdown bold formatting on labels
-            line = line.replace('**HOST1:**', 'HOST1:').replace('**HOST2:**', 'HOST2:')
-            line = re.sub(r'^(HOST[12]:)\s*["\'](.+)["\']$', r'\1 \2', line)
-            cleaned_lines.append(line)
-        # Skip any other lines (headers, stage directions, etc.)
-
-    cleaned_dialogue = '\n'.join(cleaned_lines)
-
-    # Count valid segments
-    host1_count = cleaned_dialogue.count('HOST1:')
-    host2_count = cleaned_dialogue.count('HOST2:')
-
-    if host1_count == 0 or host2_count == 0:
-        raise ValueError(
-            f"Generated dialogue has invalid format. "
-            f"Found {host1_count} HOST1 lines and {host2_count} HOST2 lines. "
-            f"Both hosts must have at least one line."
-        )
-
-    return cleaned_dialogue
+# validate_and_clean_dialogue() removed - Pydantic models handle validation automatically
 
 
 def load_audience_modifier(audience: str = "general") -> str:
@@ -219,11 +166,11 @@ def generate_dialogue(
     verbosity: int = 2
 ) -> Tuple[str, Dict[str, int]]:
     """
-    Generate conversational dialogue from document text using LiteLLM.
+    Generate conversational dialogue from document text using LiteLLM + Instructor.
 
     Args:
         text: The extracted document text to convert
-        model: OpenAI model to use (default: gpt-5-mini)
+        model: Model to use (default: anthropic/claude-sonnet-4-5)
         style: Podcast style (educational, interview, casual, debate)
         audience: Target audience (general, technical, academic, beginner)
         custom_instructions: Additional custom instructions to append to the prompt
@@ -238,7 +185,7 @@ def generate_dialogue(
             - total_tokens: Total token count
 
     Raises:
-        ValueError: If OPENAI_API_KEY is not set
+        ValueError: If required API key is not set
         Exception: If API call fails
     """
     logger = get_logger()
@@ -278,104 +225,84 @@ def generate_dialogue(
             logger.info(f"   Custom: {custom_instructions[:60]}{'...' if len(custom_instructions) > 60 else ''}")
         logger.info(f"   Input: {len(text)} chars -> Max tokens: {max_tokens if max_tokens else 'unlimited'}")
 
-        # Stream the dialogue generation with live preview (only at verbosity >= 2)
-        dialogue_chunks = []
-        current_preview = ""
-        usage_data = None
+        # Create instructor client
+        client = instructor.from_litellm(litellm_completion)
+
+        # Build request parameters
+        request_params = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": full_prompt},
+                {"role": "user", "content": f"Convert this content into a podcast dialogue:\n\n{text}"}
+            ],
+        }
+        # Only add max_tokens if limited
+        if max_tokens is not None:
+            request_params["max_tokens"] = max_tokens
 
         if RICH_AVAILABLE and verbosity >= 2:
-            # Use Rich Live preview for visual feedback
+            # Use Rich Live preview for visual feedback with streaming
+            from instructor import Partial
+
             console = Console(force_terminal=True)
             with Live("", console=console) as live:
-                # Build request parameters
-                request_params = {
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": full_prompt},
-                        {"role": "user", "content": f"Convert this content into a podcast dialogue:\n\n{text}"}
-                    ],
-                    "stream": True,
-                    "stream_options": {"include_usage": True}
-                }
-                # Only add max_tokens if limited
-                if max_tokens is not None:
-                    request_params["max_tokens"] = max_tokens
+                request_params["stream"] = True
+                request_params["response_model"] = Partial[PodcastDialogue]
 
-                stream = completion(**request_params)
+                stream = client.chat.completions.create(**request_params)
 
-                for chunk in stream:
-                    # Capture usage data from final chunk
-                    if hasattr(chunk, 'usage') and chunk.usage:
-                        usage_data = chunk.usage
+                partial_dialogue = None
+                for partial_dialogue in stream:
+                    if partial_dialogue.segments:
+                        seg_count = len(partial_dialogue.segments)
+                        last_seg = partial_dialogue.segments[-1]
 
-                    if chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        dialogue_chunks.append(content)
-                        current_preview += content
-
-                        # Extract last line for preview (update in place)
-                        lines = current_preview.strip().split('\n')
-                        last_line = lines[-1] if lines else ""
-
-                        # Truncate to fit terminal width
-                        prefix = "Generating: "
-                        max_line_length = max(20, console.width - len(prefix) - 5)
-                        if len(last_line) > max_line_length:
-                            last_line = last_line[:max_line_length] + "..."
+                        # Show segment count + last segment
+                        last_text = last_seg.text if last_seg.text else ""
+                        prefix = f"Generating ({seg_count} segments): {last_seg.speaker}: "
+                        max_text_length = max(20, console.width - len(prefix) - 5)
+                        if len(last_text) > max_text_length:
+                            last_text = last_text[:max_text_length] + "..."
 
                         preview_text = Text()
-                        preview_text.append(prefix, style="bold cyan")
-                        preview_text.append(last_line, style="white")
+                        preview_text.append(f"Generating ({seg_count} segments): ", style="bold cyan")
+                        preview_text.append(f"{last_seg.speaker}: ", style="yellow")
+                        preview_text.append(last_text, style="white")
                         live.update(preview_text)
-        else:
-            # Silent generation (no live preview)
-            # Build request parameters
-            request_params = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": full_prompt},
-                    {"role": "user", "content": f"Convert this content into a podcast dialogue:\n\n{text}"}
-                ],
-                "stream": True,
-                "stream_options": {"include_usage": True}
-            }
-            # Only add max_tokens if limited
-            if max_tokens is not None:
-                request_params["max_tokens"] = max_tokens
 
-            stream = completion(**request_params)
+                # Final dialogue is the last partial received
+                if partial_dialogue is None:
+                    raise Exception("No dialogue generated from streaming")
+                final_dialogue = partial_dialogue
 
-            for chunk in stream:
-                # Capture usage data from final chunk
-                if hasattr(chunk, 'usage') and chunk.usage:
-                    usage_data = chunk.usage
-
-                if chunk.choices[0].delta.content:
-                    dialogue_chunks.append(chunk.choices[0].delta.content)
-
-        dialogue = "".join(dialogue_chunks)
-        logger.info(f"Generated {len(dialogue)} characters of dialogue")
-
-        # Validate and clean the dialogue format
-        try:
-            cleaned_dialogue = validate_and_clean_dialogue(dialogue)
-            removed_lines = len(dialogue.split('\n')) - len(cleaned_dialogue.split('\n'))
-            if removed_lines > 0:
-                logger.info(f"Cleaned format: removed {removed_lines} non-dialogue lines")
-
-            # Prepare usage dict
+            # Extract usage from streaming (may not be available)
             usage_dict = {
-                'prompt_tokens': usage_data.prompt_tokens if usage_data else 0,
-                'completion_tokens': usage_data.completion_tokens if usage_data else 0,
-                'total_tokens': usage_data.total_tokens if usage_data else 0
+                'prompt_tokens': 0,
+                'completion_tokens': 0,
+                'total_tokens': 0
+            }
+            logger.warning("Token usage tracking not available with instructor streaming mode")
+
+        else:
+            # Non-streaming mode with token usage tracking
+            request_params["stream"] = False
+            request_params["response_model"] = PodcastDialogue
+
+            final_dialogue, raw_completion = client.chat.completions.create_with_completion(**request_params)
+
+            # Extract usage from raw completion
+            usage_dict = {
+                'prompt_tokens': raw_completion.usage.prompt_tokens if hasattr(raw_completion, 'usage') else 0,
+                'completion_tokens': raw_completion.usage.completion_tokens if hasattr(raw_completion, 'usage') else 0,
+                'total_tokens': raw_completion.usage.total_tokens if hasattr(raw_completion, 'usage') else 0
             }
 
-            return cleaned_dialogue, usage_dict
-        except ValueError as e:
-            logger.warning(f"Warning: {e}")
-            logger.warning("Raw dialogue (first 500 chars):")
-            logger.warning(dialogue[:500])
-            raise
+        # Convert structured dialogue to text format for audio.py compatibility
+        dialogue_text = final_dialogue.to_text_format()
+        segment_counts = final_dialogue.count_segments()
+        logger.info(f"Generated dialogue: {segment_counts['HOST1']} HOST1 segments, {segment_counts['HOST2']} HOST2 segments")
+
+        return dialogue_text, usage_dict
 
     except Exception as e:
         raise Exception(f"Failed to generate dialogue: {e}")
