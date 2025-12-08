@@ -2,7 +2,7 @@
 Pydantic models for structured podcast generation.
 """
 from typing import List, Optional, Literal, Dict
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class DialogueSegment(BaseModel):
@@ -11,33 +11,34 @@ class DialogueSegment(BaseModel):
         description="The speaker (HOST1 or HOST2)"
     )
     text: str = Field(
-        min_length=1,
         description="The dialogue text spoken by this host"
     )
 
     @field_validator('text')
     @classmethod
     def text_not_empty(cls, v: str) -> str:
-        if not v.strip():
+        # Only validate if value is present (allows streaming with Partial[Model])
+        if v and not v.strip():
             raise ValueError("Dialogue text cannot be empty")
-        return v.strip()
+        return v.strip() if v else v
 
 
 class PodcastDialogue(BaseModel):
     """Complete podcast dialogue with all segments."""
     segments: List[DialogueSegment] = Field(
-        min_length=2,
         description="List of dialogue segments"
     )
 
-    @field_validator('segments')
-    @classmethod
-    def both_hosts_present(cls, v: List[DialogueSegment]) -> List[DialogueSegment]:
-        """Validate both HOST1 and HOST2 speak."""
-        speakers = {seg.speaker for seg in v}
-        if len(speakers) < 2:
-            raise ValueError("Both HOST1 and HOST2 must speak")
-        return v
+    @model_validator(mode='after')
+    def validate_complete_dialogue(self) -> 'PodcastDialogue':
+        """Validate dialogue is complete (only runs on finalized models, not during streaming)."""
+        if self.segments:
+            if len(self.segments) < 2:
+                raise ValueError("Dialogue must have at least 2 segments")
+            speakers = {seg.speaker for seg in self.segments}
+            if len(speakers) < 2:
+                raise ValueError("Both HOST1 and HOST2 must speak")
+        return self
 
     def to_text_format(self) -> str:
         """Convert to legacy text format for audio.py."""
@@ -56,18 +57,36 @@ class PodcastDialogue(BaseModel):
 
 class PlanTopic(BaseModel):
     """Single topic in podcast plan."""
-    title: str = Field(min_length=1)
-    key_points: List[str] = Field(min_length=1)
+    title: str
+    key_points: List[str]
     estimated_minutes: Optional[float] = Field(None, ge=0.5)
+
+    @model_validator(mode='after')
+    def validate_complete_topic(self) -> 'PlanTopic':
+        """Validate topic is complete (only runs on finalized models, not during streaming)."""
+        if self.title is not None and len(self.title) < 1:
+            raise ValueError("Topic title must have at least 1 character")
+        if self.key_points is not None and len(self.key_points) < 1:
+            raise ValueError("Topic must have at least 1 key point")
+        return self
 
 
 class PodcastPlan(BaseModel):
     """Structured podcast plan."""
-    overview: str = Field(min_length=10)
-    topics: List[PlanTopic] = Field(min_length=1)
+    overview: str
+    topics: List[PlanTopic]
     target_audience: str
     estimated_total_minutes: Optional[float] = Field(None, ge=1.0)
     coverage_notes: Optional[str] = None
+
+    @model_validator(mode='after')
+    def validate_complete_plan(self) -> 'PodcastPlan':
+        """Validate plan is complete (only runs on finalized models, not during streaming)."""
+        if self.overview is not None and len(self.overview) < 10:
+            raise ValueError("Plan overview must have at least 10 characters")
+        if self.topics is not None and len(self.topics) < 1:
+            raise ValueError("Plan must have at least 1 topic")
+        return self
 
     def to_markdown(self) -> str:
         """Convert to markdown for display."""
