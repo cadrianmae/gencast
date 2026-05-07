@@ -31,3 +31,6 @@ test_*.srt
 # OS
 .DS_Store
 Thumbs.db
+
+# Brainstorming visual-companion sessions
+.superpowers/
