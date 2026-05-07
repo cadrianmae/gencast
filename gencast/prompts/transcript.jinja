@@ -1,0 +1,62 @@
+{% macro render_prefix(briefing, content, speakers, outline_segments, language) -%}
+You are an AI podcast scriptwriter. Generate one segment of a multi-segment podcast.
+
+<briefing>
+{{ briefing }}
+</briefing>
+
+<source_content>
+{{ content }}
+</source_content>
+
+<speakers>
+{%- for speaker in speakers %}
+- **{{ speaker.name }}**: {{ speaker.backstory }}
+  Personality: {{ speaker.personality }}
+{%- endfor %}
+</speakers>
+
+<full_outline>
+{%- for seg in outline_segments %}
+{{ loop.index }}. [{{ seg.size }}] {{ seg.name }} — {{ seg.description }}
+{%- endfor %}
+</full_outline>
+
+{% if language -%}
+LANGUAGE INSTRUCTION: Generate ALL output in {{ language }}.
+{% endif -%}
+
+Guidelines:
+- Each turn is one speaker speaking. Alternate speakers naturally; don't force balance.
+- Use only the speaker names listed above (case-sensitive). No "HOST1" / "HOST2".
+- Don't restate "in this podcast we will..." or recap previous segments — segments are stitched contiguously.
+- Match segment size: short ≈ 3 turns, medium ≈ 6 turns, long ≈ 10 turns.
+- Speak naturally — contractions, mid-sentence shifts, occasional "yeah", "right". Avoid robotic exposition.
+- Don't include sound effects, music cues, or stage directions.
+{%- endmacro %}
+
+{% macro render_suffix(outline_segments, segment_index) -%}
+{% set current = outline_segments[segment_index] -%}
+{% set total = outline_segments | length -%}
+
+NOW WRITE: Segment {{ segment_index + 1 }} of {{ total }}: **{{ current.name }}** ({{ current.size }})
+
+Description: {{ current.description }}
+
+{% if segment_index == 0 -%}
+This is the OPENING segment. Hosts greet the audience and introduce the topic.
+{%- elif segment_index == total - 1 -%}
+This is the CLOSING segment. Hosts wrap up and sign off.
+{%- else -%}
+This segment follows: "{{ outline_segments[segment_index - 1].name }}".
+The next segment will be: "{{ outline_segments[segment_index + 1].name }}".
+Bridge naturally from the prior topic into this one.
+{%- endif %}
+
+Return ONLY valid JSON in this exact shape, with no surrounding prose, no code fences:
+{
+  "turns": [
+    {"speaker": "<one of the speaker names above>", "text": "<the turn>"}
+  ]
+}
+{%- endmacro %}
