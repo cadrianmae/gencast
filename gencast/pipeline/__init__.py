@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from gencast.cost import CostMeter
 from gencast.notebook import Notebook, ResolvedNotebook, resolve_notebook
@@ -10,6 +11,10 @@ from gencast.pipeline.extract import extract_sources
 from gencast.pipeline.outline import Outline, run_outline_stage
 from gencast.pipeline.preflight import preflight
 from gencast.pipeline.transcript import Transcript, run_transcript_stage
+
+if TYPE_CHECKING:
+    from pydub import AudioSegment
+    from gencast.pipeline.audio import AudioClip
 
 
 @dataclass
@@ -21,6 +26,8 @@ class PodcastState:
     source_tokens_final: int = 0
     outline: Outline | None = None
     transcript: Transcript | None = None
+    clips: list["AudioClip"] = field(default_factory=list)
+    combined_audio: "AudioSegment | None" = None
     cost: CostMeter = field(default_factory=CostMeter)
 
 
