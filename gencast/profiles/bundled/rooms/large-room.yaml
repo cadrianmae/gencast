@@ -1,0 +1,5 @@
+name: large-room
+description: More open-feeling room — longer decay, brighter reflections.
+reverb_t60_s: 0.50
+reverb_wet: 0.08
+reverb_lpf_hz: 2500.0
