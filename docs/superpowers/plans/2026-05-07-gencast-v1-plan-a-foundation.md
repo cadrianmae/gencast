@@ -14,6 +14,66 @@
 
 ---
 
+## Execution waves (parallelization via per-subagent worktrees)
+
+Each subagent runs in its own git worktree (Agent tool `isolation: "worktree"`)
+branching off `rewrite/v1.0`. After all worktrees in a wave complete, the
+controller merges their branches back to `rewrite/v1.0` in deterministic order
+(usually trivial since each touches different files; conflicts only inside the
+same wave on the same file). Subsequent waves branch off the updated trunk.
+
+| Wave | Trunk state at start | Tasks | Concurrency | Notes |
+|---|---|---|---|---|
+| **0** ✅ done | initial | T1, T2, T3 | sequential | foundation; Tasks 1-3 already on trunk |
+| **1** | post-T3 trunk | T4-6 (schemas.py), T11, T14, T15, T17, T18, T19, T23 | **8-way** | T4→5→6 sequential within one worktree (same file); rest atomic per worktree |
+| **2** | post-Wave-1 | T7, T16 | 2-way | T7 needs schemas; T16 needs CostMeter |
+| **3** | post-Wave-2 | T8, T9, T10, T13 | 4-way | YAML dirs + first CLI command |
+| **4** | post-Wave-3 | T12 | 1-way | needs T7, T11 |
+| **5** | post-Wave-4 | T20 | 1-way | needs T14, T16, T19 |
+| **6** | post-Wave-5 | T21 | 1-way | needs T7, T17, T18, T20 |
+| **7** | post-Wave-6 | T22 | 1-way | needs T13, T21 |
+
+Sequential floor: 8 waves. Total wall-clock ≈ 8 × (avg task duration) instead
+of 23 × (avg). For Plan A, expected savings ~50% wall time.
+
+### Branch naming for worktrees
+
+Each worktree branch follows: `rewrite/v1.0-task<N>-<short-slug>`. Examples:
+- `rewrite/v1.0-task4-speaker-profile`
+- `rewrite/v1.0-task11-notebook-schema`
+- `rewrite/v1.0-task14-cost`
+
+Merged into `rewrite/v1.0` with `--no-ff` to preserve task boundaries in
+history.
+
+### Model assignments under the cost-replacement rule
+
+(Haiku **replaces** Sonnet for boilerplate; never stacked before it.)
+
+| Task | Implementer | Reasoning |
+|---|---|---|
+| T1, T2 ✅ | haiku | skeleton + pyproject |
+| T3-6 | sonnet | pydantic schemas with validators |
+| T7 | sonnet | cascade resolver with logic |
+| T8, T9, T10 | **haiku** | mostly literal YAML content from spec |
+| T11 | sonnet | Notebook + sub-models |
+| T12 | sonnet | resolver + slugify |
+| T13 | sonnet | Click CLI command |
+| T14, T15 | sonnet | CostMeter, Reporter ABC |
+| T16 | sonnet | LiteLLM wrapper |
+| T17, T18 | sonnet | extract + preflight |
+| T19 | sonnet | jinja + pydantic Outline |
+| T20 | sonnet | LLM call + JSON parsing |
+| T21, T22 | sonnet | orchestration + CLI |
+| T23 | haiku | README only |
+
+### Reviewer for every task
+
+Single combined spec+quality review via `code-documentation:code-reviewer` agent
+(sonnet model) after each task's implementation lands.
+
+---
+
 ## File Structure (Plan A)
 
 | Path | Created/Modified | Responsibility |
