@@ -6,12 +6,19 @@ Generates podcast audio from dialogue text.
 import os
 import tempfile
 import time
+from datetime import timedelta
 from pathlib import Path
 from typing import List, Tuple
+
+import srt
 from openai import OpenAI
 from pydub import AudioSegment
 
 from .logger import get_logger
+
+# Whisper API file size limit (25 MB, use 20 MB for safety margin)
+WHISPER_MAX_BYTES = 20 * 1024 * 1024  # 20 MB
+CHUNK_DURATION_MS = 10 * 60 * 1000     # 10 minutes per chunk
 
 try:
     from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn
@@ -26,6 +33,84 @@ DEFAULT_VOICES = {
     'HOST1': 'nova',
     'HOST2': 'echo'
 }
+
+
+def chunk_audio_for_whisper(audio_path: str) -> Tuple[List[str], List[int]]:
+    """
+    Split audio file into chunks suitable for Whisper API (under 25 MB each).
+
+    Args:
+        audio_path: Path to the audio file
+
+    Returns:
+        Tuple of (chunk_paths, chunk_durations_ms)
+        - chunk_paths: List of paths to chunk files (original path if no chunking needed)
+        - chunk_durations_ms: Duration of each chunk in milliseconds
+    """
+    file_size = os.path.getsize(audio_path)
+
+    # If file is small enough, return as-is
+    if file_size <= WHISPER_MAX_BYTES:
+        audio = AudioSegment.from_mp3(audio_path)
+        return [audio_path], [len(audio)]
+
+    # Load audio and split into chunks
+    audio = AudioSegment.from_mp3(audio_path)
+    chunk_paths = []
+    chunk_durations = []
+
+    # Split by duration (10-minute chunks)
+    for i in range(0, len(audio), CHUNK_DURATION_MS):
+        chunk = audio[i:i + CHUNK_DURATION_MS]
+        chunk_durations.append(len(chunk))
+
+        # Export chunk to temp file
+        chunk_file = tempfile.NamedTemporaryFile(
+            suffix=f'_chunk{len(chunk_paths)}.mp3',
+            delete=False
+        )
+        chunk_path = chunk_file.name
+        chunk_file.close()
+
+        chunk.export(chunk_path, format='mp3', bitrate='192k')
+        chunk_paths.append(chunk_path)
+
+    return chunk_paths, chunk_durations
+
+
+def combine_srt_chunks(srt_contents: List[str], chunk_durations_ms: List[int]) -> str:
+    """
+    Combine multiple SRT contents with adjusted timestamps using srt library.
+
+    Args:
+        srt_contents: List of SRT content strings from each chunk
+        chunk_durations_ms: Duration of each chunk in milliseconds
+
+    Returns:
+        Combined SRT content with corrected timestamps and sequence numbers
+    """
+    all_subs = []
+    time_offset_ms = 0
+
+    for chunk_idx, srt_content in enumerate(srt_contents):
+        # Parse SRT content
+        subs = list(srt.parse(srt_content))
+
+        # Shift timestamps by accumulated offset
+        offset = timedelta(milliseconds=time_offset_ms)
+        for sub in subs:
+            sub.start += offset
+            sub.end += offset
+            all_subs.append(sub)
+
+        # Add this chunk's duration to offset for next chunk
+        time_offset_ms += chunk_durations_ms[chunk_idx]
+
+    # Re-index all subtitles sequentially
+    for i, sub in enumerate(all_subs, start=1):
+        sub.index = i
+
+    return srt.compose(all_subs)
 
 
 def parse_dialogue(dialogue_text: str) -> List[Tuple[str, str]]:
@@ -290,6 +375,7 @@ def generate_srt_with_whisper(audio_path: str, output_path: str, verbosity: int 
     """
     Generate SRT subtitle file using OpenAI Whisper transcription.
     This produces properly timed, readable subtitles broken into natural chunks.
+    Automatically chunks large files (>20 MB) to stay within Whisper API limits.
 
     Args:
         audio_path: Path to the audio file (MP3)
@@ -311,40 +397,82 @@ def generate_srt_with_whisper(audio_path: str, output_path: str, verbosity: int 
         # Get file size for display
         file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
 
+        # Chunk audio if needed (files > 20 MB)
+        chunk_paths, chunk_durations = chunk_audio_for_whisper(audio_path)
+        num_chunks = len(chunk_paths)
+        is_chunked = num_chunks > 1
+
+        if is_chunked:
+            logger.info(f"Audio file ({file_size_mb:.1f} MB) exceeds Whisper limit, splitting into {num_chunks} chunks")
+
+        srt_contents = []
+
         if RICH_AVAILABLE and verbosity >= 2:
             console = Console(force_terminal=True)
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[bold cyan]{task.description}"),
+                BarColumn() if is_chunked else TextColumn(""),
+                TaskProgressColumn() if is_chunked else TextColumn(""),
                 TimeElapsedColumn(),
                 console=console
             ) as progress:
-                task = progress.add_task(
-                    f"Transcribing with Whisper ({file_size_mb:.1f} MB)...",
-                    total=None
-                )
+                if is_chunked:
+                    task = progress.add_task(
+                        f"Transcribing {num_chunks} chunks ({file_size_mb:.1f} MB total)...",
+                        total=num_chunks
+                    )
+                else:
+                    task = progress.add_task(
+                        f"Transcribing with Whisper ({file_size_mb:.1f} MB)...",
+                        total=None
+                    )
 
-                # Open audio file for transcription
-                with open(audio_path, 'rb') as audio_file:
+                for i, chunk_path in enumerate(chunk_paths):
+                    if is_chunked:
+                        progress.update(task, description=f"Transcribing chunk {i+1}/{num_chunks}...")
+
+                    with open(chunk_path, 'rb') as audio_file:
+                        transcript = client.audio.transcriptions.create(
+                            model="whisper-1",
+                            file=audio_file,
+                            response_format="srt"
+                        )
+                    srt_contents.append(transcript)
+
+                    if is_chunked:
+                        progress.update(task, completed=i+1)
+
+                progress.update(task, completed=True if not is_chunked else num_chunks)
+        else:
+            # Silent transcription (no progress)
+            for chunk_path in chunk_paths:
+                with open(chunk_path, 'rb') as audio_file:
                     transcript = client.audio.transcriptions.create(
                         model="whisper-1",
                         file=audio_file,
                         response_format="srt"
                     )
+                srt_contents.append(transcript)
 
-                progress.update(task, completed=True)
+        # Clean up temp chunk files (but not the original)
+        if is_chunked:
+            for chunk_path in chunk_paths:
+                if chunk_path != audio_path:
+                    try:
+                        os.unlink(chunk_path)
+                    except OSError:
+                        pass
+
+        # Combine SRT contents if chunked
+        if is_chunked:
+            combined_srt = combine_srt_chunks(srt_contents, chunk_durations)
         else:
-            # Silent transcription (no progress)
-            with open(audio_path, 'rb') as audio_file:
-                transcript = client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file,
-                    response_format="srt"
-                )
+            combined_srt = srt_contents[0]
 
         # Write SRT content to file
         srt_path = Path(output_path)
-        srt_path.write_text(transcript, encoding='utf-8')
+        srt_path.write_text(combined_srt, encoding='utf-8')
 
         return str(srt_path)
 
