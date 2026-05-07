@@ -1,0 +1,7 @@
+name: vocal-booth
+description: Tight, intimate booth — short decay, heavier absorption.
+reverb_t60_s: 0.20
+reverb_wet: 0.03
+reverb_lpf_hz: 1500.0
+reverb_damping: 0.65
+predelay_ms: 15.0

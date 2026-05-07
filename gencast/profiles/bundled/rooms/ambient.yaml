@@ -1,0 +1,3 @@
+name: ambient
+description: Audible studio ambience preset (-50 dBFS).
+ambience_db: -50.0

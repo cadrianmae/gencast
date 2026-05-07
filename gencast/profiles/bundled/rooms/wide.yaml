@@ -1,0 +1,3 @@
+name: wide
+description: Speakers spread wider (160° arc).
+arc_deg: 160.0

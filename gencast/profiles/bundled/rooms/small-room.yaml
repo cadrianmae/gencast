@@ -1,0 +1,15 @@
+name: small-room
+description: gencast default — subtle small-room sense.
+arc_deg: 120.0
+itd_max_ms: 0.6
+jitter_deg: 1.5
+reverb_t60_s: 0.30
+reverb_wet: 0.05
+reverb_lpf_hz: 2000.0
+reverb_damping: 0.55
+predelay_ms: 20.0
+table_radius_m: 0.85
+ambience_db: -70.0
+ambience_lpf_hz: 1500.0
+ambience_fan_rumble_db: 4.0
+target_dbfs: -1.0
