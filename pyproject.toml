@@ -70,6 +70,10 @@ include = ["gencast*"]
 "gencast.profiles.bundled" = ["**/*.yaml"]
 "gencast.prompts" = ["*.jinja"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "strict"
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
