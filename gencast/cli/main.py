@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import click
 
 from gencast import __version__
+from gencast.notebook import load_notebook
+from gencast.pipeline import run_through_outline
 from gencast.profiles.loader import (
     ProfileNotFoundError,
     list_profile_names,
@@ -41,3 +45,25 @@ def list_profiles(kind: str) -> None:
             except ProfileNotFoundError:
                 origin = "?"
             click.echo(f"  {name:30s} ({origin})")
+
+
+@cli.command("preview")
+@click.argument("notebook_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+def preview(notebook_path: Path) -> None:
+    """Render outline only — fast dry-run before paying for full transcript + audio generation."""
+    nb = load_notebook(notebook_path)
+    state = run_through_outline(nb)
+    assert state.outline is not None, "outline should be populated after run_through_outline"
+
+    click.secho(f"\n{state.notebook.title}", fg="cyan", bold=True)
+    click.echo(f"  speakers:  {state.resolved.speaker.name}")
+    click.echo(f"  episode:   {state.resolved.episode.name}")
+    click.echo(f"  room:      {state.resolved.room.name}")
+    click.echo(f"  source:    {state.source_tokens_original:,} tokens")
+    click.echo(f"  cost so far: ${state.cost.total_usd:.4f}")
+
+    click.secho(f"\nOutline ({len(state.outline.segments)} segments):", fg="green")
+    for i, seg in enumerate(state.outline.segments, 1):
+        click.echo(f"  {i}. [{seg.size}] {seg.name}")
+        for line in seg.description.split("\n"):
+            click.echo(f"       {line}")
