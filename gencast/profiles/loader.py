@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Literal, Type, cast
+from typing import Literal, Type, cast, overload
 
 import yaml
 from pydantic import BaseModel
@@ -19,7 +19,6 @@ _KIND_TO_MODEL: dict[str, Type[BaseModel]] = {
     "rooms": RoomProfile,
 }
 
-# The bundled directory ships with the package.
 _BUNDLED_ROOT = Path(__file__).parent / "bundled"
 
 
@@ -55,6 +54,12 @@ def resolve_profile_path(kind: ProfileKind, name: str) -> Path:
     raise ProfileNotFoundError(kind, name, candidates)
 
 
+@overload
+def load_profile(kind: Literal["speakers"], name: str) -> SpeakerProfile: ...
+@overload
+def load_profile(kind: Literal["episodes"], name: str) -> EpisodeProfile: ...
+@overload
+def load_profile(kind: Literal["rooms"], name: str) -> RoomProfile: ...
 def load_profile(kind: ProfileKind, name: str) -> SpeakerProfile | EpisodeProfile | RoomProfile:
     """Load and validate a profile by name through the cascade."""
     path = resolve_profile_path(kind, name)
