@@ -9,6 +9,7 @@ from gencast.notebook import Notebook, ResolvedNotebook, resolve_notebook
 from gencast.pipeline.extract import extract_sources
 from gencast.pipeline.outline import Outline, run_outline_stage
 from gencast.pipeline.preflight import preflight
+from gencast.pipeline.transcript import Transcript
 
 
 @dataclass
@@ -19,6 +20,7 @@ class PodcastState:
     source_tokens_original: int = 0
     source_tokens_final: int = 0
     outline: Outline | None = None
+    transcript: Transcript | None = None
     cost: CostMeter = field(default_factory=CostMeter)
 
 
