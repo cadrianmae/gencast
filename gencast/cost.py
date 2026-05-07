@@ -8,6 +8,7 @@ from typing import Any
 
 @dataclass
 class StageCost:
+    """Per-stage cost slot. Numeric fields accumulate across multiple calls."""
     kind: str  # "llm" | "tts"
     model: str | None = None
     backend: str | None = None
@@ -25,8 +26,14 @@ class CostMeter:
     stages: dict[str, StageCost] = field(default_factory=dict)
 
     def _stage(self, name: str, kind: str) -> StageCost:
-        if name not in self.stages:
-            self.stages[name] = StageCost(kind=kind)
+        if name in self.stages:
+            existing = self.stages[name]
+            if existing.kind != kind:
+                raise ValueError(
+                    f"Stage '{name}' was registered as '{existing.kind}' but called with kind='{kind}'."
+                )
+            return existing
+        self.stages[name] = StageCost(kind=kind)
         return self.stages[name]
 
     def record_llm(
@@ -35,6 +42,7 @@ class CostMeter:
         cache_reads_in: int = 0, cache_writes_in: int = 0,
         usd: float,
     ) -> None:
+        """Accumulate one LLM call's usage into the named stage. Stage must be 'llm' kind."""
         s = self._stage(stage, "llm")
         s.model = model
         s.tokens_in += tokens_in
@@ -47,6 +55,7 @@ class CostMeter:
         self, stage: str, *, backend: str, model: str,
         audio_seconds: float, usd: float,
     ) -> None:
+        """Accumulate one TTS call's audio_seconds + cost into the named stage."""
         s = self._stage(stage, "tts")
         s.backend = backend
         s.model = model
@@ -58,6 +67,7 @@ class CostMeter:
         return sum(s.usd for s in self.stages.values())
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialise all per-stage data + total_usd as plain dict (JSON-friendly)."""
         return {
             "stages": {
                 name: {

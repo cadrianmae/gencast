@@ -71,7 +71,7 @@ class PlainReporter(Reporter):
             self._emit("DEBUG", msg)
 
     def warn(self, msg: str) -> None:
-        if self.verbosity >= 0:
+        if self.verbosity >= 1:
             self._emit("WARN", msg)
 
     def error(self, msg: str) -> None:
