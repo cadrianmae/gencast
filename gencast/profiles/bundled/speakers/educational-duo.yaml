@@ -1,0 +1,28 @@
+name: educational-duo
+description: Two friendly hosts walking through a topic together — general teaching duo.
+
+tts_provider: openai
+tts_model: tts-1-hd
+
+speakers:
+  - name: Alex
+    voice_id: nova
+    backstory: |
+      A friendly explainer who's good at breaking concepts down into clear,
+      bite-sized pieces. Spends a lot of time tutoring.
+    personality: |
+      Warm, patient, leans on analogies. Happy to slow down or rewind.
+    avatar:
+      emoji: "🦊"
+      color: "#ff7847"
+
+  - name: Sam
+    voice_id: echo
+    backstory: |
+      A curious learner who asks the questions students actually have.
+      Sometimes jumps ahead, but is good at admitting confusion.
+    personality: |
+      Curious, slightly self-deprecating, occasionally pushes back on jargon.
+    avatar:
+      emoji: "🐻"
+      color: "#4a90e2"
