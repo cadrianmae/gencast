@@ -192,12 +192,13 @@ git commit -m "Plan A Task 1: wipe legacy code, rewrite pyproject.toml for packa
 - Create: `gencast/__init__.py`
 - Create: `gencast/cli/__init__.py`
 - Create: `gencast/profiles/__init__.py`
+- Create: `gencast/profiles/bundled/__init__.py` (must be a package so setuptools ships YAML data)
 - Create: `gencast/profiles/bundled/speakers/.gitkeep`
 - Create: `gencast/profiles/bundled/episodes/.gitkeep`
 - Create: `gencast/profiles/bundled/rooms/.gitkeep`
 - Create: `gencast/llm/__init__.py`
 - Create: `gencast/pipeline/__init__.py`
-- Create: `gencast/prompts/.gitkeep`
+- Create: `gencast/prompts/__init__.py` (must be a package so setuptools ships .jinja data)
 - Test: (no test yet — sanity check via import)
 
 - [ ] **Step 1: Create top-level package**
@@ -212,12 +213,30 @@ __version__ = "1.0.0a1"
 __all__ = ["__version__"]
 ```
 
-- [ ] **Step 2: Create empty subpackage __init__ files**
+- [ ] **Step 2: Create subpackage `__init__.py` files + leaf-dir `.gitkeep` markers**
+
+Note: `gencast/profiles/bundled/` and `gencast/prompts/` MUST be packages
+(have `__init__.py`) for `[tool.setuptools.package-data]` to ship their
+YAML/jinja files in the wheel. The leaf data dirs (`speakers/`, `episodes/`,
+`rooms/`) are scanned recursively via the package-data glob and don't need
+their own `__init__.py`; they keep `.gitkeep` until real YAML lands in
+Tasks 8–10.
 
 ```bash
 mkdir -p gencast/cli gencast/profiles/bundled/speakers gencast/profiles/bundled/episodes gencast/profiles/bundled/rooms gencast/llm gencast/pipeline gencast/prompts
-touch gencast/cli/__init__.py gencast/profiles/__init__.py gencast/llm/__init__.py gencast/pipeline/__init__.py
-touch gencast/profiles/bundled/speakers/.gitkeep gencast/profiles/bundled/episodes/.gitkeep gencast/profiles/bundled/rooms/.gitkeep gencast/prompts/.gitkeep
+
+# Subpackage markers — empty __init__.py
+touch gencast/cli/__init__.py
+touch gencast/profiles/__init__.py
+touch gencast/profiles/bundled/__init__.py
+touch gencast/llm/__init__.py
+touch gencast/pipeline/__init__.py
+touch gencast/prompts/__init__.py
+
+# Leaf data dirs — .gitkeep until populated in Tasks 8-10
+touch gencast/profiles/bundled/speakers/.gitkeep
+touch gencast/profiles/bundled/episodes/.gitkeep
+touch gencast/profiles/bundled/rooms/.gitkeep
 ```
 
 - [ ] **Step 3: Install package**
