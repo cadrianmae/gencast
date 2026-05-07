@@ -34,3 +34,6 @@ Thumbs.db
 
 # Brainstorming visual-companion sessions
 .superpowers/
+
+# Per-task worktrees + the rewrite-trunk worktree
+.worktrees/
