@@ -1,4 +1,4 @@
-"""Pipeline state + orchestrator. Plan A only goes through the outline stage."""
+"""Pipeline state + orchestrators. Plan B extends through the transcript stage."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from gencast.notebook import Notebook, ResolvedNotebook, resolve_notebook
 from gencast.pipeline.extract import extract_sources
 from gencast.pipeline.outline import Outline, run_outline_stage
 from gencast.pipeline.preflight import preflight
+from gencast.pipeline.transcript import Transcript, run_transcript_stage
 
 
 @dataclass
@@ -19,30 +20,28 @@ class PodcastState:
     source_tokens_original: int = 0
     source_tokens_final: int = 0
     outline: Outline | None = None
+    transcript: Transcript | None = None
     cost: CostMeter = field(default_factory=CostMeter)
 
 
-def run_through_outline(notebook: Notebook) -> PodcastState:
-    """Plan A pipeline: load → extract → preflight → outline. Returns the state."""
+def _run_load_extract_preflight_outline(notebook: Notebook) -> PodcastState:
+    """Stages 1, 2, 3, 5. (4 = map-reduce, deferred to Plan C.)"""
     resolved = resolve_notebook(notebook)
     state = PodcastState(notebook=notebook, resolved=resolved)
 
-    # Stage 2: extract
     text, tokens = extract_sources(
         notebook.sources,
         model=f"{resolved.outline_provider}/{resolved.outline_model}",
     )
     state.source_text = text
     state.source_tokens_original = tokens
-    state.source_tokens_final = tokens  # no map-reduce in Plan A
+    state.source_tokens_final = tokens
 
-    # Stage 3: preflight
     preflight(
         source_tokens=tokens,
         model=f"{resolved.outline_provider}/{resolved.outline_model}",
     )
 
-    # Stage 5: outline (Plan A skips stage 4 map-reduce)
     state.outline = run_outline_stage(
         briefing=resolved.briefing,
         content=text,
@@ -53,5 +52,26 @@ def run_through_outline(notebook: Notebook) -> PodcastState:
         outline_model=resolved.outline_model,
         cost_meter=state.cost,
     )
+    return state
 
+
+def run_through_outline(notebook: Notebook) -> PodcastState:
+    """Plan A pipeline: load → extract → preflight → outline. Used by `gencast preview`."""
+    return _run_load_extract_preflight_outline(notebook)
+
+
+def run_through_transcript(notebook: Notebook) -> PodcastState:
+    """Plan A pipeline + transcript stage. Used by Plan B/C orchestrators."""
+    state = _run_load_extract_preflight_outline(notebook)
+    assert state.outline is not None  # populated above
+    state.transcript = run_transcript_stage(
+        briefing=state.resolved.briefing,
+        content=state.source_text,
+        speakers=state.resolved.speaker.speakers,
+        outline=state.outline,
+        language=state.resolved.episode.language,
+        transcript_provider=state.resolved.transcript_provider,
+        transcript_model=state.resolved.transcript_model,
+        cost_meter=state.cost,
+    )
     return state
