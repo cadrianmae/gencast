@@ -46,3 +46,11 @@ def test_to_dict_format():
     d = cm.to_dict()
     assert d["total_usd"] == pytest.approx(0.01)
     assert d["stages"]["outline"]["tokens_in"] == 1
+
+
+def test_stage_kind_mismatch_raises():
+    """Reusing a stage name with a different kind raises ValueError."""
+    cm = CostMeter()
+    cm.record_llm("foo", model="m", tokens_in=1, tokens_out=1, usd=0.01)
+    with pytest.raises(ValueError, match="kind"):
+        cm.record_tts("foo", backend="b", model="m", audio_seconds=1.0, usd=0.01)

@@ -36,3 +36,11 @@ def test_plain_reporter_stage_lines(capsys):
     out = capsys.readouterr()
     assert "1/10" in out.err
     assert "extract" in out.err
+
+
+def test_plain_reporter_silent_suppresses_warn(capsys):
+    """Silent verbosity (0) suppresses warnings; only errors emit."""
+    r = PlainReporter(verbosity=0)
+    r.warn("important warning")
+    out = capsys.readouterr()
+    assert "important warning" not in out.err
