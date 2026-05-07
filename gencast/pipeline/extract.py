@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Sequence
 
 import tiktoken
 
@@ -29,7 +30,7 @@ def _read_one(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def extract_sources(paths: list[str | Path], *, model: str) -> tuple[str, int]:
+def extract_sources(paths: Sequence[str | Path], *, model: str) -> tuple[str, int]:
     """
     Read sources, concatenate, return (text, token_count).
     Files are separated by `\\n\\n---\\n\\n` so the LLM knows they're distinct.
