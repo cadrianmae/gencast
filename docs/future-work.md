@@ -130,3 +130,49 @@ Optional: persist cost.json from each run into a SurrealDB instance for
 trend analysis. Mirrors what Open Notebook's tier-B cost tracking would
 have done. Probably never built — `cost.json` files in a directory are
 greppable enough.
+
+## Claude Code skills bundled with the repo
+
+Ship a small set of Claude Code skills alongside gencast so Mae (and other
+users) can drive notebook creation + post-generation review through
+natural-language Claude prompts rather than CLI commands. Built using
+`/plugin-dev:*` from the claude-marketplace plugin set.
+
+Likely repo layout:
+
+```
+gencast/
+├── .claude-plugin/
+│   ├── plugin.json
+│   └── ...
+└── skills/
+    ├── notebook-init/SKILL.md
+    ├── brief/SKILL.md
+    ├── review-transcript/SKILL.md
+    └── source-check/SKILL.md
+```
+
+Candidate skills:
+
+| Skill | Trigger | What it does |
+|---|---|---|
+| `gencast:notebook-init` | "make a gencast notebook from these notes" | Conversational alternative to the CLI wizard. Reads candidate sources, suggests episode + speaker + room profiles, writes notebook.yaml |
+| `gencast:brief` | "draft a briefing for [topic]" | Helps write a good `default_briefing` or `briefing_suffix` for a custom episode/notebook |
+| `gencast:review-transcript` | "review this gencast transcript" | Reads `transcript.json` after a run, flags awkward phrasings, suggests edits, optionally regenerates affected segments |
+| `gencast:source-check` | "are these sources good for a podcast?" | Pre-flight analysis: token counts, topical coherence, suggests splits or summarization |
+| `gencast:cost-explain` | "why did that podcast cost so much?" | Reads `cost.json`, explains the per-stage breakdown in plain terms, suggests optimizations (cheaper outline model, smaller num_segments, etc.) |
+
+**Important**: keep the CLI fully functional without skills. Skills are an
+optional Claude-Code-flavored UX layer, not a requirement. The library +
+CLI have to stand on their own for users who don't use Claude Code.
+
+**v1 hooks reserved** (none required — skills can be added later without
+schema changes since they only call public APIs):
+
+- `gencast preview NB.yaml` already exists for outline-only dry runs (used
+  by `notebook-init` skill to show user the proposed structure before
+  committing)
+- `transcript.json` and `cost.json` are stable artifacts the skills can
+  read without scraping logs
+- `gencast list-profiles --type X` is the discovery surface skills will
+  use when suggesting profile choices
