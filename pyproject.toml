@@ -4,57 +4,58 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gencast"
-version = "0.6.2"
-description = "Generate conversational podcasts from documents using AI (NotebookLM alternative)"
+version = "1.0.0a1"
+description = "Generate conversational podcasts from documents using AI"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
     {name = "Mae Capacite", email = "cadrianmae@users.noreply.github.com"}
 ]
-keywords = ["podcast", "ai", "tts", "openai", "whisper", "notebooklm", "education"]
+keywords = ["podcast", "ai", "tts", "openai", "anthropic", "notebooklm", "education"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Education",
-    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Multimedia :: Sound/Audio :: Speech",
-    "Topic :: Education",
 ]
 
 dependencies = [
-    "openai>=1.0.0",
+    "click>=8.1.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+    "jinja2>=3.1.0",
     "litellm>=1.30.0",
+    "openai>=1.0.0",
     "pydub>=0.25.1",
     "mistralai>=1.0.0",
     "pypdf>=3.0.0",
-    "audioop-lts>=0.2.0",
+    "audioop-lts>=0.2.0; python_version >= '3.13'",
     "rich>=13.0.0",
     "srt>=3.5.0",
+    "tiktoken>=0.7.0",
 ]
 
 [project.optional-dependencies]
-dev = [
+test = [
     "pytest>=7.0.0",
-    "ruff>=0.1.0",
-    "basedpyright>=1.21.0",
+    "pytest-asyncio>=0.21.0",
+    "vcrpy>=5.0.0",
+    "ffmpeg-python>=0.2.0",
 ]
+dev = [
+    "basedpyright>=1.21.0",
+    "ruff>=0.1.0",
+]
+all = ["gencast[test,dev]"]
 
 [project.scripts]
-gencast = "gencast:main"
-
-[tool.setuptools]
-py-modules = ["gencast"]
-
-[tool.setuptools.package-data]
-"*" = ["prompts/*.txt", "audiences/*.txt"]
+gencast = "gencast.cli.main:cli"
 
 [project.urls]
 Homepage = "https://github.com/cadrianmae/podcast-ai"
@@ -63,39 +64,22 @@ Issues = "https://github.com/cadrianmae/podcast-ai/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src*", "gencast.py"]
+include = ["gencast*"]
+
+[tool.setuptools.package-data]
+"gencast.profiles.bundled" = ["**/*.yaml"]
+"gencast.prompts" = ["*.jinja"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py38"
+target-version = "py310"
+
+[tool.ruff.lint]
+extend-select = ["I", "N", "W"]
 
 [tool.basedpyright]
-pythonVersion = "3.8"
+pythonVersion = "3.10"
 pythonPlatform = "Linux"
-typeCheckingMode = "strict"
-
-# Paths
-include = ["src", "gencast.py"]
-exclude = ["venv", "build", "**/__pycache__"]
-
-# Warn-only mode (doesn't fail)
-reportMissingTypeStubs = "warning"
-reportUnknownParameterType = "warning"
-reportUnknownArgumentType = "warning"
-reportUnknownMemberType = "warning"
-reportMissingTypeArgument = "warning"
-reportUnknownVariableType = "warning"
-reportAttributeAccessIssue = "warning"
-reportUnusedImport = "warning"
-reportMissingImports = "warning"
-reportReturnType = "warning"
-reportConstantRedefinition = "warning"
-reportPossiblyUnboundVariable = "warning"
-reportUnusedVariable = "warning"
-reportDeprecated = "warning"
-reportArgumentType = "warning"
-reportAssignmentType = "warning"
-
-# Still enforce these
-reportOptionalMemberAccess = "error"
-reportOptionalSubscript = "error"
+typeCheckingMode = "standard"
+include = ["gencast", "tests"]
+exclude = ["venv", "build", "**/__pycache__", "scratch"]
