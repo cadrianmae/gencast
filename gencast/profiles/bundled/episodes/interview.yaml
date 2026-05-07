@@ -1,0 +1,17 @@
+name: interview
+description: Q&A format — interviewer asks, expert answers, with follow-ups for depth.
+
+speaker_profile: interview-duo
+
+default_briefing: |
+  This is an interview-format podcast. The interviewer's role is to ask
+  the audience's questions and push for clarity; the expert's role is to
+  provide depth and concrete examples. They should:
+    - Open with an introduction to the topic and why it matters
+    - Cover key questions the audience would actually have
+    - Push back when answers are too jargon-heavy: "what does that mean for someone outside the field?"
+    - Close with a takeaway or "what should the listener remember"
+  Tone: engaged, curious, occasionally challenging in a friendly way.
+
+num_segments: 5
+segment_size_default: medium

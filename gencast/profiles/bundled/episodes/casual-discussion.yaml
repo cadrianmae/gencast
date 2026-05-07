@@ -1,0 +1,18 @@
+name: casual-discussion
+description: Two friends chatting about a topic — informal, exploratory, not lecture-shaped.
+
+speaker_profile: educational-duo
+
+default_briefing: |
+  This is a casual-discussion podcast. The hosts are chatting about the
+  source material as if they just read it and want to talk it through.
+  They should:
+    - Sound like friends having coffee, not a structured lecture
+    - Be willing to riff, react, share what surprised them
+    - Use natural disagreements as a way to explore the topic
+    - Avoid feeling like a script — let them be a bit messy
+  Tone: relaxed, conversational, occasionally playful. Definitions emerge
+  through discussion rather than being announced.
+
+num_segments: 5
+segment_size_default: medium
