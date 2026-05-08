@@ -98,3 +98,20 @@ def generate(notebook_path: Path) -> None:
                f"{(len(state.combined_audio) // 1000) if state.combined_audio else 0}s combined")
     click.echo(f"  cost:       ${state.cost.total_usd:.4f}")
     click.secho(f"\nWrote outputs to {nb.output.dir}", fg="green")
+
+
+@cli.command("subtitle")
+@click.argument("audio_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option(
+    "--out", "out_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None, help="Output SRT path (default: same dir + .srt).",
+)
+def subtitle(audio_path: Path, out_path: Path | None) -> None:
+    """Re-subtitle an external audio file via Whisper."""
+    from gencast.pipeline.whisper_subtitle import transcribe_to_srt
+    srt_content = transcribe_to_srt(audio_path)
+    if out_path is None:
+        out_path = audio_path.with_suffix(".srt")
+    out_path.write_text(srt_content)
+    click.secho(f"Wrote {out_path}", fg="green")
