@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from litellm import completion
@@ -39,8 +40,32 @@ def chat_completion(
     extra: dict[str, Any] | None = None,
     cost_meter: CostMeter | None = None,
     stage: str | None = None,
+    cache_dir: Path | None = None,
 ) -> LLMResponse:
     """One LLM call. Records cost into cost_meter[stage] if provided."""
+    params = {
+        "response_format": response_format,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "extra": extra,
+    }
+
+    cache = None
+    if cache_dir is not None:
+        from gencast.llm.cache import LLMDiskCache
+        cache = LLMDiskCache(cache_dir)
+        cached = cache.get(provider=provider, model=model, messages=messages, params=params)
+        if cached is not None:
+            return LLMResponse(
+                content=cached["content"],
+                tokens_in=cached["tokens_in"],
+                tokens_out=cached["tokens_out"],
+                cache_reads_in=cached["cache_reads_in"],
+                cache_writes_in=cached["cache_writes_in"],
+                usd=cached["usd"],
+                raw=None,
+            )
+
     kwargs: dict[str, Any] = {
         "model": _format_model(provider, model),
         "messages": messages,
@@ -64,6 +89,17 @@ def chat_completion(
     cache_reads_in = getattr(usage, "cache_read_input_tokens", 0) or 0
     cache_writes_in = getattr(usage, "cache_creation_input_tokens", 0) or 0
     usd = (resp._hidden_params or {}).get("response_cost", 0.0) or 0.0
+
+    if cache is not None:
+        cache.put(
+            provider=provider, model=model, messages=messages, params=params,
+            payload={
+                "content": content,
+                "tokens_in": tokens_in, "tokens_out": tokens_out,
+                "cache_reads_in": cache_reads_in, "cache_writes_in": cache_writes_in,
+                "usd": usd,
+            },
+        )
 
     if cost_meter is not None and stage is not None:
         cost_meter.record_llm(
