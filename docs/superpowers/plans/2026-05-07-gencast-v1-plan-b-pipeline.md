@@ -3731,4 +3731,45 @@ Gaps:
 
 ---
 
+## Task B20 — Vectorise SchroederReverb (mid-flight v1.0.0 addition)
+
+**Added:** 2026-05-08. Mae's directive: must ship in v1.0.0; blocked a 25-min podcast
+from finishing in reasonable time (~20 min wall-clock for reverb alone).
+
+### Problem
+`SchroederReverb._comb` and `_allpass` used pure-Python per-sample loops. For a
+25-min podcast at 44100 Hz that is ~66 M loop iterations per comb filter. With
+4 parallel combs × 2 channels + 2 allpasses, reverb took ~22s for 30s of audio.
+
+### Approach — blockwise numpy (not naive lfilter)
+`scipy.signal.lfilter` with a 1300-coefficient sparse IIR array is O(N×D) — just
+as slow as the Python loop, because scipy's C backend multiplies every coefficient.
+Instead we exploit the *sparse recurrence structure*:
+
+- **Undamped comb:** `B[n] = s[n] + g*B[n-D]` — position n only depends on n-D.
+  Processing in chunks of size D reduces each chunk to a single vectorised add:
+  `B[start:end] = s[start:end] + g*B[start-D:end-D]`.
+
+- **Damped comb:** adds a 1-pole LPF `L[n] = a*L[n-1] + (1-a)*B[n-D]`. The LPF
+  has delay=1 so `scipy.signal.lfilter` handles it fast per chunk, with
+  initial-condition propagation (`zi`) carrying state across chunks.
+
+- **Allpass:** `B[n] = s[n] + g*B[n-D]` (same blockwise comb), then
+  `y[n] = -g*s[n] + (1-g²)*B[n-D]` (derived algebraically from loop equations).
+
+### Note on lfilter approach
+The task brief proposed `lfilter(b,a,x)` with full sparse coefficient arrays.
+This is mathematically correct (verified) but O(N×D) — just as slow as the Python
+loop for D~1300. The blockwise approach achieves true O(N) with a small constant.
+
+### Results
+- **Wall-clock:** 0.47s for 30s stereo audio (with wet LPF) vs ~22s → **~47x speedup**
+- **Bit-exact:** max error < 6×10⁻⁸ (float64→float32 rounding noise only)
+- **API unchanged:** `SchroederReverb.__init__`, `apply`, all public attributes identical
+
+### Files changed
+- `gencast/audio_fx/reverb.py` — `_comb` and `_allpass` replaced with blockwise numpy
+- `tests/unit/test_audio_fx_reverb_vectorized.py` — 56 parametrised correctness tests + 1 benchmark
+- `pyproject.toml` — registered `benchmark` pytest marker; `addopts = "-m 'not benchmark'"`
+
 Plan B saved. Ready to dispatch.
