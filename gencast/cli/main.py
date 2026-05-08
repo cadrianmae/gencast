@@ -17,9 +17,62 @@ from gencast.profiles.loader import (
 
 
 @click.group(invoke_without_command=False)
+@click.option("-v", "--verbose", "verbose", is_flag=True, help="Show INFO messages.")
+@click.option("-vv", "--debug", "debug", is_flag=True, help="Show DEBUG messages.")
+@click.option("-q", "--quiet", "quiet", is_flag=True, help="Spinner only — no INFO/DEBUG.")
+@click.option("--silent", "silent", is_flag=True, help="Silent — errors only.")
+@click.option(
+    "--log-file", "log_file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None, help="Tee full DEBUG log to this file regardless of console verbosity.",
+)
 @click.version_option(__version__, prog_name="gencast")
-def cli() -> None:
+@click.pass_context
+def cli(ctx: click.Context, verbose: bool, debug: bool, quiet: bool, silent: bool, log_file: Path | None) -> None:
     """gencast — generate conversational podcasts from documents."""
+    # Mutual-exclusion check
+    flag_count = sum([verbose, debug, quiet, silent])
+    if flag_count > 1:
+        raise click.UsageError(
+            "Verbosity flags are mutually exclusive: pick at most one of "
+            "-v / -vv / -q / --silent."
+        )
+
+    # Resolve verbosity int
+    # Ladder: default=1 (normal), -v=2 (verbose), -vv/--debug=3 (debug),
+    #         -q/--quiet=0 (warnings+errors), --silent=-1 (errors only).
+    if silent:
+        verbosity = -1
+    elif quiet:
+        verbosity = 0
+    elif debug:
+        verbosity = 3
+    elif verbose:
+        verbosity = 2
+    else:
+        verbosity = 1  # default — INFO visible but not extra verbose
+
+    from gencast.logger import make_reporter
+    reporter = make_reporter(verbosity=verbosity)
+    ctx.ensure_object(dict)
+    ctx.obj["reporter"] = reporter
+    ctx.obj["log_file"] = log_file
+
+    # Tee full DEBUG log to file regardless of console verbosity.
+    if log_file is not None:
+        import logging
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(str(log_file), mode="a", encoding="utf-8")
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+        )
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.DEBUG)
+        root_logger.addHandler(file_handler)
+        ctx.obj["_log_file_handler"] = file_handler
+        # Emit a startup record so the file is never empty after a successful run.
+        logging.getLogger("gencast").debug("gencast session started (log-file tee active)")
 
 
 @cli.command("list-profiles")
