@@ -134,3 +134,68 @@ def subtitle(audio_path: Path, out_path: Path | None) -> None:
         out_path = audio_path.with_suffix(".srt")
     out_path.write_text(srt_content)
     click.secho(f"Wrote {out_path}", fg="green")
+
+
+@cli.group("cache")
+def cache_group() -> None:
+    """Inspect and clear gencast caches."""
+
+
+def _cache_dirs(kind: str) -> list[Path]:
+    """Resolve cache directories for the given kind (tts | llm | extract | all)."""
+    import os
+    base = Path(os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")) / "gencast"
+    if kind == "all":
+        return [base / "tts", base / "llm", base / "extract"]
+    return [base / kind]
+
+
+def _du(p: Path) -> int:
+    if not p.exists():
+        return 0
+    return sum(f.stat().st_size for f in p.rglob("*") if f.is_file())
+
+
+def _format_bytes(n: int) -> str:
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} GB"
+
+
+@cache_group.command("status")
+@click.option(
+    "--type", "kind",
+    type=click.Choice(["tts", "llm", "extract", "all"]),
+    default="all",
+)
+def cache_status(kind: str) -> None:
+    """Print cache size and path for each cache kind."""
+    for d in _cache_dirs(kind):
+        size = _du(d)
+        click.echo(f"  {d.name:10s} {_format_bytes(size):>12}  {d}")
+
+
+@cache_group.command("clear")
+@click.option(
+    "--type", "kind",
+    type=click.Choice(["tts", "llm", "extract", "all"]),
+    default="all",
+)
+@click.option("--yes", is_flag=True, help="Skip confirmation prompt.")
+def cache_clear(kind: str, yes: bool) -> None:
+    """Remove cache contents (preserves directory)."""
+    targets = _cache_dirs(kind)
+    total = sum(_du(d) for d in targets)
+    if not yes:
+        click.confirm(
+            f"Remove {_format_bytes(total)} from {len(targets)} cache(s)?",
+            abort=True,
+        )
+    for d in targets:
+        if d.exists():
+            for f in d.rglob("*"):
+                if f.is_file():
+                    f.unlink()
+    click.secho(f"Cleared {_format_bytes(total)}", fg="green")
