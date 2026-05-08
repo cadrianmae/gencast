@@ -39,14 +39,18 @@ def cli(ctx: click.Context, verbose: bool, debug: bool, quiet: bool, silent: boo
         )
 
     # Resolve verbosity int
+    # Ladder: default=1 (normal), -v=2 (verbose), -vv/--debug=3 (debug),
+    #         -q/--quiet=0 (warnings+errors), --silent=-1 (errors only).
     if silent:
         verbosity = -1
     elif quiet:
         verbosity = 0
     elif debug:
+        verbosity = 3
+    elif verbose:
         verbosity = 2
     else:
-        verbosity = 1  # default; -v is the same as default
+        verbosity = 1  # default — INFO visible but not extra verbose
 
     from gencast.logger import make_reporter
     reporter = make_reporter(verbosity=verbosity)
@@ -54,10 +58,21 @@ def cli(ctx: click.Context, verbose: bool, debug: bool, quiet: bool, silent: boo
     ctx.obj["reporter"] = reporter
     ctx.obj["log_file"] = log_file
 
-    # Tee log file if requested — append a FileHandler-like writer
+    # Tee full DEBUG log to file regardless of console verbosity.
     if log_file is not None:
+        import logging
         log_file.parent.mkdir(parents=True, exist_ok=True)
-        log_file.touch()  # ensure it exists for the test
+        file_handler = logging.FileHandler(str(log_file), mode="a", encoding="utf-8")
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+        )
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.DEBUG)
+        root_logger.addHandler(file_handler)
+        ctx.obj["_log_file_handler"] = file_handler
+        # Emit a startup record so the file is never empty after a successful run.
+        logging.getLogger("gencast").debug("gencast session started (log-file tee active)")
 
 
 @cli.command("list-profiles")

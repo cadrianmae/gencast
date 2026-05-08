@@ -46,10 +46,18 @@ class Reporter(ABC):
 
 
 class PlainReporter(Reporter):
-    """Stderr text reporter for non-interactive contexts (CI, pipes, redirects)."""
+    """Stderr text reporter for non-interactive contexts (CI, pipes, redirects).
+
+    Verbosity ladder:
+      -1  -- errors only (--silent)
+       0  -- warnings + errors (-q/--quiet)
+       1  -- INFO + WARN + ERROR (default)
+       2  -- adds stage_activity / VERBOSE lines (-v/--verbose)
+       3  -- full DEBUG (-vv/--debug)
+    """
 
     def __init__(self, verbosity: int = 1):
-        self.verbosity = verbosity  # 0=silent, 1=info, 2=debug
+        self.verbosity = verbosity
 
     def _ts(self) -> str:
         return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -63,8 +71,9 @@ class PlainReporter(Reporter):
             self._emit("INFO", f"Stage {n}/{total} {name}")
 
     def stage_activity(self, line: str) -> None:
+        # stage_activity emits at verbose (2) and above
         if self.verbosity >= 2:
-            self._emit("DEBUG", line)
+            self._emit("VERBOSE", line)
 
     def stage_advance(self, items: int = 1) -> None:
         pass  # Plain reporter doesn't track inner progress
@@ -77,15 +86,16 @@ class PlainReporter(Reporter):
             self._emit("INFO", msg)
 
     def debug(self, msg: str) -> None:
-        if self.verbosity >= 2:
+        # debug() only emits at full debug level (3)
+        if self.verbosity >= 3:
             self._emit("DEBUG", msg)
 
     def warn(self, msg: str) -> None:
-        if self.verbosity >= 1:
+        if self.verbosity >= 0:
             self._emit("WARN", msg)
 
     def error(self, msg: str) -> None:
-        # Errors always emit
+        # Errors always emit regardless of verbosity
         self._emit("ERROR", msg)
 
 
@@ -172,15 +182,16 @@ class RichReporter(Reporter):
             self._info_buffer.append(f"[INFO] {msg}")
 
     def debug(self, msg: str) -> None:
-        if self.verbosity >= 2:
+        # debug() only emits at full debug level (3)
+        if self.verbosity >= 3:
             self._info_buffer.append(f"[DEBUG] {msg}")
 
     def warn(self, msg: str) -> None:
-        if self.verbosity >= 1:
+        if self.verbosity >= 0:
             self._info_buffer.append(f"[WARN] {msg}")
 
     def error(self, msg: str) -> None:
-        # Errors always emit
+        # Errors always emit regardless of verbosity
         self._info_buffer.append(f"[ERROR] {msg}")
 
     def close(self) -> None:

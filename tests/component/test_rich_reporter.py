@@ -34,11 +34,16 @@ def test_rich_reporter_activity_records():
 def test_rich_reporter_log_levels_respect_verbosity():
     r = RichReporter(verbosity=0)
     r.info("hidden")
-    assert r._info_buffer == []  # silent at v=0
+    assert r._info_buffer == []  # info is suppressed at v=0
 
+    # debug() only emits at verbosity 3 (--debug / -vv)
     r2 = RichReporter(verbosity=2)
-    r2.debug("visible at debug")
-    assert "visible at debug" in r2._info_buffer[-1]
+    r2.debug("hidden at verbose")
+    assert r2._info_buffer == []  # debug still hidden at -v (verbosity 2)
+
+    r3 = RichReporter(verbosity=3)
+    r3.debug("visible at debug")
+    assert "visible at debug" in r3._info_buffer[-1]
 
 
 def test_make_reporter_picks_rich_on_tty(monkeypatch):
