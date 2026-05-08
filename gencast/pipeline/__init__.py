@@ -15,6 +15,7 @@ from gencast.pipeline.transcript import Transcript, run_transcript_stage
 if TYPE_CHECKING:
     from pydub import AudioSegment
     from gencast.pipeline.audio import AudioClip
+    from gencast.tts import TTSBackend
 
 
 @dataclass
@@ -81,4 +82,30 @@ def run_through_transcript(notebook: Notebook) -> PodcastState:
         transcript_model=state.resolved.transcript_model,
         cost_meter=state.cost,
     )
+    return state
+
+
+from gencast.pipeline.audio import run_audio_stage  # noqa: E402
+from gencast.pipeline.package import write_outputs  # noqa: E402
+
+
+def get_default_tts_backend(state: "PodcastState") -> "TTSBackend":
+    """Resolve the default TTS backend from the speaker profile.
+
+    Indirection lets tests patch this single seam instead of monkeypatching
+    `get_backend` per-test.
+    """
+    from gencast.tts import get_backend
+    sp = state.resolved.speaker
+    return get_backend(sp.tts_provider, sp.tts_model, **(sp.tts_config or {}))
+
+
+def run_pipeline(notebook: "Notebook") -> "PodcastState":
+    """Full pipeline through packaging. Returns the populated state."""
+    import asyncio
+
+    state = run_through_transcript(notebook)
+    backend = get_default_tts_backend(state)
+    asyncio.run(run_audio_stage(state, backend=backend))
+    write_outputs(state)
     return state
