@@ -10,13 +10,12 @@ if TYPE_CHECKING:
 # Conservative budgets per model — context window minus headroom for prompt
 # scaffolding, system messages, and response.
 _MODEL_BUDGETS: dict[str, int] = {
-    "anthropic/claude-sonnet-4":  200_000 - 5_000,
-    "anthropic/claude-haiku-4.5": 200_000 - 5_000,
-    "anthropic/claude-opus-4-7":  200_000 - 5_000,
-    # NOTE: gpt-5-mini context window is speculative; revisit when published.
-    "openai/gpt-5-mini":           400_000 - 5_000,
-    "openai/gpt-4o-mini":          128_000 - 5_000,
-    "openai/gpt-4o":               128_000 - 5_000,
+    "anthropic/claude-sonnet-4-5":   200_000 - 5_000,
+    "anthropic/claude-haiku-4-5":    200_000 - 5_000,
+    "anthropic/claude-opus-4-7":     200_000 - 5_000,
+    "openai/gpt-5-mini":             400_000 - 5_000,
+    "openai/gpt-4o-mini":            128_000 - 5_000,
+    "openai/gpt-4o":                 128_000 - 5_000,
 }
 
 # Conservative fallback for any model not in _MODEL_BUDGETS — chosen so an
