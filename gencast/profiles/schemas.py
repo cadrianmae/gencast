@@ -78,9 +78,9 @@ class EpisodeProfile(BaseModel):
     num_segments: int = 6
     segment_size_default: SegmentSize = "medium"
     outline_provider: str = "anthropic"
-    outline_model: str = "claude-haiku-4.5"
+    outline_model: str = "claude-haiku-4-5"
     transcript_provider: str = "anthropic"
-    transcript_model: str = "claude-sonnet-4"
+    transcript_model: str = "claude-sonnet-4-5"
     outline_config: dict[str, Any] | None = None
     transcript_config: dict[str, Any] | None = None
     summarize_provider: str | None = None
