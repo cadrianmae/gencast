@@ -1,0 +1,3 @@
+name: narrow
+description: Speakers closer together (80° arc).
+arc_deg: 80.0

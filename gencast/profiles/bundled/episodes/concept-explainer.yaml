@@ -1,0 +1,17 @@
+name: concept-explainer
+description: Define-then-deepen format. Hosts work through one or more concepts, building up from definitions to nuanced cases.
+
+speaker_profile: educational-duo
+
+default_briefing: |
+  This is a concept-explainer podcast. The hosts are working through the
+  source material in a define-then-deepen pattern. They should:
+    - Define each new term clearly the first time it's introduced
+    - Build up from simple cases to more complex ones
+    - Use concrete analogies for abstract ideas
+    - Periodically check in: "did that land?" / "let's try another way"
+  Tone: friendly, structured, conversational. Avoid lecture-mode. The
+  audience is curious but not necessarily expert.
+
+num_segments: 5
+segment_size_default: medium

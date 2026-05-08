@@ -1,0 +1,36 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  pull_request:
+    branches: [main, "rewrite/**"]
+  push:
+    branches: [main, "rewrite/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install package
+        run: pip install -e .[test]
+
+      - name: Run unit + component tests
+        run: pytest tests/unit tests/component -v
+
+      - name: Type check (basedpyright)
+        run: |
+          pip install basedpyright
+          basedpyright || true  # warn-only per pyproject config

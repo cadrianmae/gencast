@@ -1,0 +1,4 @@
+name: dry
+description: No reverb, no ambience. Cold but very clean.
+reverb_wet: 0.0
+ambience_db: null

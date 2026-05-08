@@ -1,0 +1,40 @@
+You are an AI podcast producer. Your task is to create a detailed outline for a podcast episode based on the provided briefing and source content.
+
+<briefing>
+{{ briefing }}
+</briefing>
+
+<content>
+{{ content }}
+</content>
+
+The podcast features the following speakers:
+<speakers>
+{%- for speaker in speakers %}
+- **{{ speaker.name }}**: {{ speaker.backstory }}
+  Personality: {{ speaker.personality }}
+{%- endfor %}
+</speakers>
+
+{% if language -%}
+LANGUAGE INSTRUCTION: Generate ALL output in {{ language }}.
+{% endif -%}
+
+Create an outline with exactly {{ num_segments }} segments. Each segment has:
+- a clear, informative name (catchy but accurate)
+- a description (2-4 sentences) covering what will be discussed and how
+- a size: "short" (about 3 turns), "medium" (about 6 turns), or "long" (about 10 turns)
+
+Guidelines:
+- The first segment is an introduction; the last is a conclusion
+- Segments should flow logically — the listener gets progressively deeper into the material
+- Match segment sizes to importance: trivia gets "short", core concepts get "medium" or "long"
+- Don't repeat introductions or topic-restatements between segments — they're internal markers, not chapters
+- Consider speaker personalities when planning who would naturally lead each segment
+
+Return ONLY valid JSON in this exact shape, with no surrounding prose, no code fences:
+{
+  "segments": [
+    {"name": "...", "description": "...", "size": "short" | "medium" | "long"}
+  ]
+}

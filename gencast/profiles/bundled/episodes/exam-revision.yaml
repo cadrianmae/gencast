@@ -1,0 +1,17 @@
+name: exam-revision
+description: Revision podcast for exam prep — concept walkthroughs with worked examples.
+
+speaker_profile: revision-duo
+
+default_briefing: |
+  This is an exam-revision podcast. The hosts are walking through the
+  source material as if preparing for a written exam. They should:
+    - Define each major term clearly when first introduced
+    - Work through at least one concrete example or worked problem per segment
+    - Distinguish things that are commonly confused
+    - Periodically tie concepts back to "what could be on the exam"
+  Tone: friendly, structured, slightly informal. Avoid jargon unless
+  defining it. No introductions for new segments — flow naturally.
+
+num_segments: 6
+segment_size_default: medium

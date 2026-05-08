@@ -1,275 +1,149 @@
 # gencast
 
-🎙️ Generate conversational podcasts from documents using AI - A cost-effective, customisable NotebookLM alternative
+Generate conversational podcasts from documents using AI. A cost-effective, customisable, local-first alternative to NotebookLM.
 
-## Features
-
-✨ **Multiple Input Formats**
-- Markdown (`.md`)
-- Plain text (`.txt`)
-- PDF (`.pdf`) with intelligent extraction via Mistral AI
-
-🎭 **Podcast Styles**
-- **Educational**: Friendly hosts explaining concepts clearly
-- **Interview**: Curious host interviewing an expert
-- **Casual**: Friends chatting informally about the topic
-- **Debate**: Two perspectives discussing different viewpoints
-
-👥 **Target Audiences**
-- **General**: Accessible language for general audiences
-- **Technical**: Deep-dive with technical terminology
-- **Academic**: Scholarly tone with theoretical depth
-- **Beginner**: ELI5 style with lots of analogies
-
-🎧 **Premium Audio Features**
-- HD TTS (OpenAI `tts-1-hd`)
-- Spatial audio with panning and interaural time difference (ITD)
-- Customisable voice selection (6 voices available)
-- Professional stereo mixing
-
-📝 **Accessibility**
-- Automatic SRT subtitle generation via Whisper
-- Readable subtitle chunks (not walls of text!)
-- VLC-compatible with visualizations
-
-⚡ **Developer Experience**
-- Rich progress indicators with live streaming preview
-- Real-time dialogue generation display
-- Detailed progress bars with time estimates
-
-## Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/cadrianmae/podcast-ai.git
-cd podcast-ai
-
-# Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install in editable mode
-pip install -e .
-
-# Set up API keys
-export OPENAI_API_KEY="sk-..."
-export MISTRAL_API_KEY="..."  # Optional, only needed for PDFs
+```text
+gencast notebook.yaml  ->  podcast.m4a (with embedded subtitles)
 ```
 
-The `gencast` command is now available in your terminal (when venv is active)!
-
-## Usage
-
-### Basic Usage
+## Install
 
 ```bash
-# Generate podcast from a document
-gencast lecture.md
-
-# Multiple documents
-gencast chapter1.md chapter2.md chapter3.md -o combined_podcast.mp3
-
-# Specify output
-gencast document.pdf -o my_podcast.mp3
+pip install gencast
 ```
 
-### Podcast Styles & Audiences
+System dependency: `ffmpeg` (for audio combining and M4A muxing).
+
+API keys (export or use `gencast init` to be prompted):
 
 ```bash
-# Educational podcast for beginners
-gencast machine_learning.md --style educational --audience beginner
-
-# Technical interview
-gencast architecture.md --style interview --audience technical
-
-# Casual conversation for academics
-gencast research_paper.pdf --style casual --audience academic
-
-# Debate format for general audience
-gencast topic.md --style debate --audience general
+export OPENAI_API_KEY="sk-..."          # required (TTS + Whisper)
+export ANTHROPIC_API_KEY="sk-ant-..."   # required (default outline + transcript)
+export MISTRAL_API_KEY="..."            # optional (better PDF extraction)
 ```
 
-### Voice & Audio Customisation
+## Quickstart
 
 ```bash
-# Custom voices (alloy, echo, fable, onyx, nova, shimmer)
-gencast doc.md --host1-voice nova --host2-voice echo
-
-# Adjust spatial separation (0.0-1.0)
-gencast doc.md --spatial-separation 0.6
-
-# Save dialogue for review
-gencast doc.md --save-dialogue
+gencast init                        # interactive notebook wizard
+gencast preview notebook.yaml       # outline-only dry run (free)
+gencast generate notebook.yaml      # full pipeline -> out/<basename>.m4a
 ```
 
-### Multi-Provider Support
+Or one-shot from a markdown file (uses default profiles):
 
 ```bash
-# OpenAI models (default)
-gencast doc.md --model gpt-4o-mini
-gencast doc.md --model gpt-4o
-
-# Anthropic Claude models
-gencast doc.md --model anthropic/claude-sonnet-4.5
-gencast doc.md --model anthropic/claude-opus-4.5
-
-# Supports 100+ models via LiteLLM
-# See https://docs.litellm.ai/docs/providers for full list
+gencast generate path/to/lecture.md
 ```
 
-Set up API keys for your chosen provider:
+## Three-axis profile system
 
-```bash
-# OpenAI (required for audio - TTS and Whisper)
-export OPENAI_API_KEY="sk-..."
+Each notebook composes three orthogonal profiles:
 
-# Anthropic (optional, for Claude models)
-export ANTHROPIC_API_KEY="sk-ant-..."
-
-# Mistral (optional, for PDF processing)
-export MISTRAL_API_KEY="..."
+```yaml
+speaker_profile: revision-duo       # WHO speaks (1-4 voices, personas)
+episode_profile: exam-revision      # WHAT kind of podcast (briefing, segments, models)
+room_profile:    small-room         # HOW it sounds (spatial pipeline)
 ```
 
-### Planning Feature
+List bundled profiles:
 
 ```bash
-# Generate comprehensive podcast plan before dialogue
-gencast doc.md --with-planning
-
-# Save the plan for review
-gencast doc.md --with-planning --save-plan
-
-# Combine with other options
-gencast doc.md --with-planning --save-plan --save-dialogue \
-  --style interview --audience technical
+gencast list-profiles --type speakers
+gencast list-profiles --type episodes
+gencast list-profiles --type rooms
 ```
 
-The planning feature creates a structured outline ensuring thorough coverage of all source material before generating the dialogue.
+Profiles cascade: `./gencast/profiles/<kind>/<name>.yaml` (project)
+> `~/.config/gencast/profiles/<kind>/<name>.yaml` (XDG)
+> bundled defaults. Override per-notebook via `overrides:` block in the
+notebook YAML.
 
-### Advanced Options
+## Worked example
+
+`./photosynthesis/notebook.yaml`:
+
+```yaml
+title: Photosynthesis revision
+sources:
+  - lectures/photosynthesis.md
+  - lectures/calvin-cycle.md
+speaker_profile: revision-duo
+episode_profile: exam-revision
+room_profile: small-room
+output:
+  basename: photosynthesis-revision
+  formats: [m4a]
+overrides:
+  briefing_suffix: |
+    Pay specific attention to the distinction between the light-dependent
+    reactions and the Calvin cycle. Include one worked Q&A on this distinction.
+```
 
 ```bash
-# Combine all features
-gencast input.md \
-  -o output.mp3 \
-  --model anthropic/claude-sonnet-4.5 \
-  --style interview \
-  --audience technical \
-  --host1-voice nova \
-  --host2-voice echo \
-  --spatial-separation 0.4 \
-  --with-planning \
-  --save-plan \
-  --save-dialogue
-
-# Verbosity control
-gencast doc.md --minimal  # Minimal output
-gencast doc.md --silent   # Silent mode (errors only)
+gencast generate photosynthesis/notebook.yaml
+# -> photosynthesis/out/photosynthesis-revision.m4a
 ```
 
 ## Cost
 
-Typical cost per 3-minute podcast (~1500 words):
-- **Document processing** (Mistral, optional): ~$0.01
-- **Dialogue generation** (GPT-4o-mini): ~$0.02-0.05
-- **TTS audio** (tts-1-hd): ~$0.06-0.10
-- **Whisper transcription**: ~$0.01
+Typical 10-min podcast (~5K-token source, 6 segments, 2 speakers):
 
-**Total**: ~$0.10-0.17 per podcast 💜
+| Component | Default model | Cost |
+|---|---|---|
+| Outline | `claude-haiku-4-5` | ~$0.005 |
+| Transcript (with prompt cache) | `claude-sonnet-4-5` | ~$0.10 |
+| TTS | `openai/tts-1-hd` | ~$0.06 |
+| Subtitles | native (no Whisper) | $0.00 |
+| **Total** | | **~$0.17** |
 
-## Requirements
+Use `--model` overrides or different episode profiles to trade quality for cost.
 
-- Python 3.8+
-- OpenAI API key (required)
-- Mistral API key (optional, for PDF processing)
+## Caches
 
-## Architecture
+- **TTS cache** -- `~/.cache/gencast/tts/` -- always on. Re-runs cost only changed sentences.
+- **LLM cache** -- `~/.cache/gencast/llm/` -- opt-in via `--cache-llm`. Off by default since dialogue is non-deterministic.
+- **PDF extract cache** -- `~/.cache/gencast/extract/` -- always on for Mistral PDF extraction.
 
-```
-gencast/
-├── gencast.py             # Main CLI entry point
-├── src/
-│   ├── dialogue.py        # Multi-provider dialogue (LiteLLM)
-│   ├── planning.py        # Podcast planning (LiteLLM)
-│   ├── audio.py           # TTS + spatial audio + Whisper (OpenAI)
-│   ├── utils.py           # Document reading (MD, TXT, PDF)
-│   └── logger.py          # Logging with verbosity levels
-├── prompts/               # Podcast style prompts
-│   ├── educational.txt
-│   ├── interview.txt
-│   ├── casual.txt
-│   ├── debate.txt
-│   └── planning.txt
-├── audiences/             # Audience modifiers
-│   ├── general.txt
-│   ├── technical.txt
-│   ├── academic.txt
-│   └── beginner.txt
-├── pyproject.toml        # Package configuration
-├── requirements.txt
-└── README.md
-```
-
-### Hybrid AI Provider Architecture
-
-**LiteLLM** (chat completions):
-- `dialogue.py` and `planning.py` use LiteLLM for multi-provider support
-- Supports OpenAI, Anthropic, and 100+ other providers
-- Preserves streaming UX for neurodivergent-friendly progress feedback
-
-**OpenAI SDK** (audio processing):
-- `audio.py` uses OpenAI SDK for TTS and Whisper
-- These APIs are not yet supported by LiteLLM
-
-## Playing Podcasts with Subtitles
-
-To view SRT subtitles with audio in VLC:
-
-1. Open the MP3 file in VLC (subtitles auto-load if same filename)
-2. Enable visualizations: **Audio → Visualizations → Spectrometer**
-3. Subtitles will appear over the visualization!
-
-The Whisper-generated subtitles are broken into short, readable chunks (1-3 seconds each) for a great viewing experience.
-
-## Development
+Manage:
 
 ```bash
-# Run tests
-pytest
-
-# Type checking (strict mode, warn-only)
-basedpyright                 # Full project
-basedpyright src/dialogue.py # Single file
-
-# Lint and format
-ruff check .
-ruff format .
+gencast cache status
+gencast cache clear --type tts --yes
 ```
 
-## Tips
+## CLI reference
 
-- Use `--save-dialogue` to review the generated conversation before audio synthesis
-- Experiment with different `--spatial-separation` values (0.3-0.6 recommended)
-- The `casual` style works great for making dry academic content more engaging
-- PDFs work best when text-based (not scanned images)
+```text
+gencast NB.yaml                       generate (alias for `gencast generate NB.yaml`)
+gencast init [--copy NB] [--minimal]  interactive notebook wizard
+gencast preview NB.yaml               outline-only dry run
+gencast generate NB.yaml              full pipeline -> m4a + sidecars
+gencast list-profiles [--type X]      enumerate profiles in cascade
+gencast subtitle audio.mp3            re-subtitle external audio (Whisper)
+gencast cache status [--type X]       inspect cache sizes
+gencast cache clear [--type X] [--yes]
+```
 
-## Troubleshooting
+Verbosity: `-v`, `-vv`, `-q`, `--silent`, `--log-file PATH`.
 
-**"No module named 'audioop'"** (Python 3.13+)
-- Already handled! The `audioop-lts` package is included in requirements.
+## Tests
 
-**Subtitles don't show in VLC**
-- Enable Audio → Visualizations → Spectrometer
-- Ensure .srt file has same name as .mp3
+```bash
+pytest tests/unit                          # fast, no API calls
+pytest tests/component                     # vcrpy cassettes, no keys needed once recorded
+GENCAST_TEST_E2E=1 pytest tests/e2e        # real API calls, costs a few cents
+GENCAST_TEST_AUDIO=1 pytest tests/audio    # TTS + spatial audio (requires OPENAI_API_KEY)
+```
 
-**Poor audio quality**
-- Check you're using `tts-1-hd` (default)
-- Try different voice combinations
+## Specs and design
 
-## Acknowledgements
-
-Created by Mae Capacite as a more affordable, customisable alternative to NotebookLM for generating educational podcasts from lecture materials.
+- [v1.0 design](docs/superpowers/specs/2026-05-07-gencast-v1-rewrite-design.md)
+- [Plan A -- foundation](docs/superpowers/plans/2026-05-07-gencast-v1-plan-a-foundation.md)
+- [Plan B -- pipeline](docs/superpowers/plans/2026-05-07-gencast-v1-plan-b-pipeline.md)
+- [Plan C -- finishing](docs/superpowers/plans/2026-05-08-gencast-v1-plan-c-finishing.md)
+- [Future work](docs/future-work.md)
 
 ## License
 
-MIT
+MIT.
