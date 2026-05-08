@@ -9,7 +9,7 @@ from gencast.cost import CostMeter
 from gencast.notebook import Notebook, ResolvedNotebook, resolve_notebook
 from gencast.pipeline.extract import extract_sources
 from gencast.pipeline.outline import Outline, run_outline_stage
-from gencast.pipeline.preflight import preflight
+from gencast.pipeline.preflight import compress_if_needed
 from gencast.pipeline.transcript import Transcript, run_transcript_stage
 
 if TYPE_CHECKING:
@@ -45,10 +45,19 @@ def _run_load_extract_preflight_outline(notebook: Notebook) -> PodcastState:
     state.source_tokens_original = tokens
     state.source_tokens_final = tokens
 
-    preflight(
+    target_model = f"{resolved.outline_provider}/{resolved.outline_model}"
+    summarise_provider = resolved.episode.summarize_provider or resolved.outline_provider
+    summarise_model = resolved.episode.summarize_model or resolved.outline_model
+    text, tokens_final = compress_if_needed(
+        source_text=text,
         source_tokens=tokens,
-        model=f"{resolved.outline_provider}/{resolved.outline_model}",
+        target_model=target_model,
+        summarise_provider=summarise_provider,
+        summarise_model=summarise_model,
+        cost_meter=state.cost,
     )
+    state.source_text = text
+    state.source_tokens_final = tokens_final
 
     state.outline = run_outline_stage(
         briefing=resolved.briefing,

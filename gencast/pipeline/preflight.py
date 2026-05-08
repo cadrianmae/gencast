@@ -1,6 +1,11 @@
-"""Token-budget preflight. Map-reduce path lives in Plan C."""
+"""Token-budget preflight. Map-reduce compression for over-budget sources."""
 
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gencast.cost import CostMeter
 
 # Conservative budgets per model — context window minus headroom for prompt
 # scaffolding, system messages, and response.
@@ -42,3 +47,31 @@ def preflight(*, source_tokens: int, model: str) -> None:
     budget = model_input_budget(model)
     if source_tokens > budget:
         raise SourceTooLargeError(source_tokens, budget, model)
+
+
+def compress_if_needed(
+    *,
+    source_text: str,
+    source_tokens: int,
+    target_model: str,
+    summarise_provider: str,
+    summarise_model: str,
+    cost_meter: "CostMeter",
+) -> tuple[str, int]:
+    """Run map-reduce if source exceeds target_model budget. Returns (text, tokens)."""
+    from gencast.pipeline.mapreduce import summarise_recursive
+
+    budget = model_input_budget(target_model)
+    if source_tokens <= budget:
+        return source_text, source_tokens
+    compressed = summarise_recursive(
+        source_text,
+        budget_tokens=budget,
+        summarise_provider=summarise_provider,
+        summarise_model=summarise_model,
+        cost_meter=cost_meter,
+    )
+    import tiktoken
+    enc = tiktoken.get_encoding("cl100k_base")
+    new_tokens = len(enc.encode(compressed))
+    return compressed, new_tokens
