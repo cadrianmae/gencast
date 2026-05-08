@@ -67,11 +67,15 @@ def render_transcript_segment_prompt(
 
 import json
 import re
+from typing import TYPE_CHECKING
 
 from gencast.cost import CostMeter
 from gencast.llm import chat_completion
 from gencast.llm.caching import build_cached_messages
 from gencast.pipeline.outline import Outline
+
+if TYPE_CHECKING:
+    from gencast.logger import Reporter
 
 
 # Same code-fence stripper as outline stage. Keep local to avoid cross-module import cycle.
@@ -93,10 +97,14 @@ def run_transcript_stage(
     transcript_provider: str,
     transcript_model: str,
     cost_meter: CostMeter,
+    reporter: "Reporter | None" = None,
 ) -> Transcript:
     """Loop outline segments, one LLM call each, accumulate turns into a Transcript."""
     valid_speaker_names = {s.name for s in speakers}
     all_turns: list[TranscriptTurn] = []
+
+    if reporter is not None:
+        reporter.stage_start(6, 10, "Transcript", total_items=len(outline.segments))
 
     for seg_index in range(len(outline.segments)):
         prefix, suffix = render_transcript_segment_prompt(
@@ -116,6 +124,22 @@ def run_transcript_stage(
             cost_meter=cost_meter,
             stage="transcript",
         )
+
+        if reporter is not None:
+            try:
+                tokens_in = int(response.tokens_in)
+                cache_reads_in = int(response.cache_reads_in)
+            except (TypeError, ValueError):
+                tokens_in = 0
+                cache_reads_in = 0
+            cache_pct = 0.0
+            if tokens_in > 0:
+                cache_pct = 100.0 * cache_reads_in / tokens_in
+            reporter.stage_activity(
+                f"[{transcript_provider}/{transcript_model}] segment {seg_index + 1} — "
+                f"cache read {cache_pct:.0f}% ({cache_reads_in} of {tokens_in} tok)"
+            )
+            reporter.stage_advance(1)
 
         raw = _strip_code_fence(response.content)
         try:
@@ -141,5 +165,8 @@ def run_transcript_stage(
                 )
             turn.segment_index = seg_index
             all_turns.append(turn)
+
+    if reporter is not None:
+        reporter.stage_done()
 
     return Transcript(turns=all_turns)

@@ -26,6 +26,7 @@ from gencast.tts import TTSBackend, get_backend, split_sentences
 from gencast.tts.cache import TTSDiskCache, default_cache_dir
 
 if TYPE_CHECKING:
+    from gencast.logger import Reporter
     from gencast.pipeline import PodcastState
 
 INTER_TURN_PAUSE_MS = 300
@@ -72,6 +73,7 @@ async def run_audio_stage(
     backend: TTSBackend | None = None,
     cache_dir: Path | None = None,
     concurrency: int = 5,
+    reporter: "Reporter | None" = None,
 ) -> None:
     """Populate state.clips and state.combined_audio with per-clip room FX applied via render_clip_with_room."""
     assert state.transcript is not None, "transcript must be populated"
@@ -96,6 +98,9 @@ async def run_audio_stage(
         seg_idx = turn.segment_index if turn.segment_index is not None else 0
         for s_idx, sentence in enumerate(split_sentences(turn.text)):
             jobs.append((turn_index, s_idx, turn.speaker, sentence, seg_idx, voice, ""))
+
+    if reporter is not None:
+        reporter.stage_start(7, 10, "Audio", total_items=len(jobs))
 
     # Synthesize concurrently
     semaphore = asyncio.Semaphore(concurrency)
@@ -160,6 +165,18 @@ async def run_audio_stage(
         cursor_ms = end
         last_turn_index = turn_index
 
+        if reporter is not None:
+            speaker_emoji = ""
+            for sp_obj in state.resolved.speaker.speakers:
+                if sp_obj.name == speaker_name and sp_obj.avatar and sp_obj.avatar.emoji:
+                    speaker_emoji = f"{sp_obj.avatar.emoji} "
+                    break
+            reporter.stage_activity(
+                f"{speaker_emoji}{backend.backend_name}/{backend.model} — "
+                f"{speaker_name}: {sentence_text[:50]}"
+            )
+            reporter.stage_advance(1)
+
         if not hit:
             usd = seconds * backend.usd_per_audio_second
             state.cost.record_tts(
@@ -182,3 +199,6 @@ async def run_audio_stage(
 
     state.clips = clips
     state.combined_audio = combined
+
+    if reporter is not None:
+        reporter.stage_done()

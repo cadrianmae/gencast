@@ -143,7 +143,8 @@ def init(minimal: bool, copy_from: Path | None, output_path: Path) -> None:
 
 @cli.command("generate")
 @click.argument("notebook_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
-def generate(notebook_path: Path) -> None:
+@click.pass_context
+def generate(ctx: click.Context, notebook_path: Path) -> None:
     """Run the full pipeline: extract → outline → transcript → audio → package."""
     nb = load_notebook(notebook_path)
 
@@ -157,7 +158,8 @@ def generate(notebook_path: Path) -> None:
         for s in nb.sources
     ]
 
-    state = run_pipeline(nb)
+    reporter = ctx.obj["reporter"]
+    state = run_pipeline(nb, reporter=reporter)
 
     click.secho(f"\n{state.notebook.title}", fg="cyan", bold=True)
     click.echo(f"  speakers:   {state.resolved.speaker.name}")
