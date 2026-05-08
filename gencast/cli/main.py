@@ -69,6 +69,25 @@ def preview(notebook_path: Path) -> None:
             click.echo(f"       {line}")
 
 
+@cli.command("init")
+@click.option("--minimal", is_flag=True, help="Skip optional prompts.")
+@click.option(
+    "--copy", "copy_from",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None, help="Pre-fill from an existing notebook YAML.",
+)
+@click.option(
+    "--out", "output_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=Path("notebook.yaml"),
+    help="Where to write the notebook YAML (default: ./notebook.yaml).",
+)
+def init(minimal: bool, copy_from: Path | None, output_path: Path) -> None:
+    """Interactively create a notebook YAML."""
+    from gencast.cli.init_wizard import run_wizard
+    run_wizard(output_path=output_path, minimal=minimal, copy_from=copy_from)
+
+
 @cli.command("generate")
 @click.argument("notebook_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 def generate(notebook_path: Path) -> None:
