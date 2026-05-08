@@ -37,3 +37,4 @@ Thumbs.db
 
 # Per-task worktrees + the rewrite-trunk worktree
 .worktrees/
+dist/
