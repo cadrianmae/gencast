@@ -54,3 +54,22 @@ def test_different_messages_miss(tmp_path):
         messages=[{"role": "user", "content": "B"}],
         params={"max_tokens": 100},
     ) is None
+
+
+def test_malformed_json_returns_none(tmp_path):
+    cache = LLMDiskCache(tmp_path)
+    # Manually create a cache file with corrupt JSON
+    p = cache._path(cache._key(
+        provider="anthropic", model="claude-sonnet-4-5",
+        messages=[{"role": "user", "content": "corrupt"}],
+        params={"max_tokens": 100},
+    ))
+    p.write_text("{invalid json garbage")
+
+    # get() should return None (cache miss) instead of raising
+    result = cache.get(
+        provider="anthropic", model="claude-sonnet-4-5",
+        messages=[{"role": "user", "content": "corrupt"}],
+        params={"max_tokens": 100},
+    )
+    assert result is None

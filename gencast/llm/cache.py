@@ -36,7 +36,10 @@ class LLMDiskCache:
         ))
         if not p.exists():
             return None
-        return json.loads(p.read_text())
+        try:
+            return json.loads(p.read_text())
+        except json.JSONDecodeError:
+            return None
 
     def put(
         self, *, provider: str, model: str,
@@ -46,7 +49,14 @@ class LLMDiskCache:
         p = self._path(self._key(
             provider=provider, model=model, messages=messages, params=params,
         ))
-        p.write_text(json.dumps(payload))
+        tmp = p.with_suffix(p.suffix + ".tmp")
+        try:
+            tmp.write_text(json.dumps(payload))
+            os.replace(tmp, p)
+        except Exception:
+            if tmp.exists():
+                tmp.unlink()
+            raise
 
 
 def default_llm_cache_dir() -> Path:
