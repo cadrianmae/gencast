@@ -7,7 +7,7 @@ def test_episode_profile_minimum():
     ep = EpisodeProfile(name="basic", default_briefing="A briefing.")
     assert ep.num_segments == 6
     assert ep.outline_provider == "anthropic"
-    assert ep.transcript_model == "claude-sonnet-4"
+    assert ep.transcript_model == "claude-sonnet-4-5"
     assert ep.segment_size_default == "medium"
     assert ep.language is None
 
@@ -23,7 +23,7 @@ def test_episode_profile_full():
         outline_provider="openai",
         outline_model="gpt-4o-mini",
         transcript_provider="anthropic",
-        transcript_model="claude-sonnet-4",
+        transcript_model="claude-sonnet-4-5",
         language="en",
     )
     assert ep.num_segments == 8
