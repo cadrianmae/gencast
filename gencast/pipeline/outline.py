@@ -5,7 +5,10 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from gencast.logger import Reporter
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pydantic import BaseModel, ConfigDict, Field
@@ -74,8 +77,15 @@ def run_outline_stage(
     outline_provider: str,
     outline_model: str,
     cost_meter: CostMeter,
+    reporter: "Reporter | None" = None,
 ) -> Outline:
     """Generate the podcast outline. One LLM call, JSON-structured output."""
+    if reporter is not None:
+        reporter.stage_start(5, 10, "Outline")
+        reporter.stage_activity(
+            f"[{outline_provider}/{outline_model}] generating {num_segments} segments"
+        )
+
     prompt = render_outline_prompt(
         briefing=briefing, content=content, speakers=speakers,
         num_segments=num_segments, language=language,
@@ -97,5 +107,8 @@ def run_outline_stage(
         raise ValueError(
             f"Outline LLM response was not valid JSON: {e}. Raw response: {raw[:300]!r}"
         ) from e
+
+    if reporter is not None:
+        reporter.stage_done()
 
     return Outline(**data)

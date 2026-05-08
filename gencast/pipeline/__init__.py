@@ -14,6 +14,7 @@ from gencast.pipeline.transcript import Transcript, run_transcript_stage
 
 if TYPE_CHECKING:
     from pydub import AudioSegment
+    from gencast.logger import Reporter
     from gencast.pipeline.audio import AudioClip
     from gencast.tts import TTSBackend
 
@@ -32,7 +33,9 @@ class PodcastState:
     cost: CostMeter = field(default_factory=CostMeter)
 
 
-def _run_load_extract_preflight_outline(notebook: Notebook) -> PodcastState:
+def _run_load_extract_preflight_outline(
+    notebook: Notebook, *, reporter: "Reporter | None" = None,
+) -> PodcastState:
     """Stages 1, 2, 3, 5. (4 = map-reduce, deferred to Plan C.)"""
     resolved = resolve_notebook(notebook)
     state = PodcastState(notebook=notebook, resolved=resolved)
@@ -40,6 +43,7 @@ def _run_load_extract_preflight_outline(notebook: Notebook) -> PodcastState:
     text, tokens = extract_sources(
         notebook.sources,
         model=f"{resolved.outline_provider}/{resolved.outline_model}",
+        reporter=reporter,
     )
     state.source_text = text
     state.source_tokens_original = tokens
@@ -68,18 +72,19 @@ def _run_load_extract_preflight_outline(notebook: Notebook) -> PodcastState:
         outline_provider=resolved.outline_provider,
         outline_model=resolved.outline_model,
         cost_meter=state.cost,
+        reporter=reporter,
     )
     return state
 
 
-def run_through_outline(notebook: Notebook) -> PodcastState:
+def run_through_outline(notebook: Notebook, *, reporter: "Reporter | None" = None) -> PodcastState:
     """Plan A pipeline: load → extract → preflight → outline. Used by `gencast preview`."""
-    return _run_load_extract_preflight_outline(notebook)
+    return _run_load_extract_preflight_outline(notebook, reporter=reporter)
 
 
-def run_through_transcript(notebook: Notebook) -> PodcastState:
+def run_through_transcript(notebook: Notebook, *, reporter: "Reporter | None" = None) -> PodcastState:
     """Plan A pipeline + transcript stage. Used by Plan B/C orchestrators."""
-    state = _run_load_extract_preflight_outline(notebook)
+    state = _run_load_extract_preflight_outline(notebook, reporter=reporter)
     assert state.outline is not None  # populated above
     state.transcript = run_transcript_stage(
         briefing=state.resolved.briefing,
@@ -90,6 +95,7 @@ def run_through_transcript(notebook: Notebook) -> PodcastState:
         transcript_provider=state.resolved.transcript_provider,
         transcript_model=state.resolved.transcript_model,
         cost_meter=state.cost,
+        reporter=reporter,
     )
     return state
 
@@ -109,12 +115,22 @@ def get_default_tts_backend(state: "PodcastState") -> "TTSBackend":
     return get_backend(sp.tts_provider, sp.tts_model, **(sp.tts_config or {}))
 
 
-def run_pipeline(notebook: "Notebook") -> "PodcastState":
+def run_pipeline(notebook: "Notebook", *, reporter: "Reporter | None" = None) -> "PodcastState":
     """Full pipeline through packaging. Returns the populated state."""
     import asyncio
 
-    state = run_through_transcript(notebook)
+    state = run_through_transcript(notebook, reporter=reporter)
     backend = get_default_tts_backend(state)
-    asyncio.run(run_audio_stage(state, backend=backend))
+    asyncio.run(run_audio_stage(state, backend=backend, reporter=reporter))
+
+    if reporter is not None:
+        reporter.stage_start(9, 10, "Package")
+        reporter.stage_activity(f"writing formats: {state.notebook.output.formats}")
     write_outputs(state)
+    if reporter is not None:
+        reporter.stage_done()
+        close = getattr(reporter, "close", None)
+        if close is not None:
+            close()
+
     return state
