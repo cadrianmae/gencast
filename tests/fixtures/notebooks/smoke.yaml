@@ -1,0 +1,16 @@
+title: Smoke Notebook
+description: Tiny notebook used by Plan B Task 19 smoke test.
+output:
+  dir: ./out
+  basename: smoke
+  formats:
+    - mp3
+    - transcript
+    - cost
+sources:
+  - smoke_source.md
+speaker_profile: revision-duo
+episode_profile: exam-revision
+room_profile: small-room
+overrides:
+  num_segments: 3
