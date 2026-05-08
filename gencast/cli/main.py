@@ -17,9 +17,47 @@ from gencast.profiles.loader import (
 
 
 @click.group(invoke_without_command=False)
+@click.option("-v", "--verbose", "verbose", is_flag=True, help="Show INFO messages.")
+@click.option("-vv", "--debug", "debug", is_flag=True, help="Show DEBUG messages.")
+@click.option("-q", "--quiet", "quiet", is_flag=True, help="Spinner only — no INFO/DEBUG.")
+@click.option("--silent", "silent", is_flag=True, help="Silent — errors only.")
+@click.option(
+    "--log-file", "log_file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None, help="Tee full DEBUG log to this file regardless of console verbosity.",
+)
 @click.version_option(__version__, prog_name="gencast")
-def cli() -> None:
+@click.pass_context
+def cli(ctx: click.Context, verbose: bool, debug: bool, quiet: bool, silent: bool, log_file: Path | None) -> None:
     """gencast — generate conversational podcasts from documents."""
+    # Mutual-exclusion check
+    flag_count = sum([verbose, debug, quiet, silent])
+    if flag_count > 1:
+        raise click.UsageError(
+            "Verbosity flags are mutually exclusive: pick at most one of "
+            "-v / -vv / -q / --silent."
+        )
+
+    # Resolve verbosity int
+    if silent:
+        verbosity = -1
+    elif quiet:
+        verbosity = 0
+    elif debug:
+        verbosity = 2
+    else:
+        verbosity = 1  # default; -v is the same as default
+
+    from gencast.logger import make_reporter
+    reporter = make_reporter(verbosity=verbosity)
+    ctx.ensure_object(dict)
+    ctx.obj["reporter"] = reporter
+    ctx.obj["log_file"] = log_file
+
+    # Tee log file if requested — append a FileHandler-like writer
+    if log_file is not None:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        log_file.touch()  # ensure it exists for the test
 
 
 @cli.command("list-profiles")
