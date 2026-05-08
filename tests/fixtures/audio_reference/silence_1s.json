@@ -1,0 +1,42 @@
+{
+  "ambient": {
+    "length_ms": 500.0,
+    "peak_dbfs": -5.594895525068732,
+    "rms_dbfs": -17.379548540339282
+  },
+  "dry": {
+    "length_ms": 500.0,
+    "peak_dbfs": -5.129552076990965,
+    "rms_dbfs": -16.95175851832132
+  },
+  "large-room": {
+    "length_ms": 500.0,
+    "peak_dbfs": -5.895333139690328,
+    "rms_dbfs": -17.643870793564783
+  },
+  "narrow": {
+    "length_ms": 500.0,
+    "peak_dbfs": -5.594895525068732,
+    "rms_dbfs": -17.379548540339282
+  },
+  "silent": {
+    "length_ms": 500.0,
+    "peak_dbfs": -5.594895525068732,
+    "rms_dbfs": -17.379548540339282
+  },
+  "small-room": {
+    "length_ms": 500.0,
+    "peak_dbfs": -5.594895525068732,
+    "rms_dbfs": -17.379548540339282
+  },
+  "vocal-booth": {
+    "length_ms": 500.0,
+    "peak_dbfs": -5.4026943721235,
+    "rms_dbfs": -17.209665831908556
+  },
+  "wide": {
+    "length_ms": 500.0,
+    "peak_dbfs": -5.594895525068732,
+    "rms_dbfs": -17.379548540339282
+  }
+}
