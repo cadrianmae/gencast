@@ -8,7 +8,7 @@ import click
 
 from gencast import __version__
 from gencast.notebook import load_notebook
-from gencast.pipeline import run_through_outline
+from gencast.pipeline import run_pipeline, run_through_outline
 from gencast.profiles.loader import (
     ProfileNotFoundError,
     list_profile_names,
@@ -67,3 +67,34 @@ def preview(notebook_path: Path) -> None:
         click.echo(f"  {i}. [{seg.size}] {seg.name}")
         for line in seg.description.split("\n"):
             click.echo(f"       {line}")
+
+
+@cli.command("generate")
+@click.argument("notebook_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+def generate(notebook_path: Path) -> None:
+    """Run the full pipeline: extract → outline → transcript → audio → package."""
+    nb = load_notebook(notebook_path)
+
+    # Resolve output.dir relative to notebook file location if it's relative
+    if not nb.output.dir.is_absolute():
+        nb.output.dir = (notebook_path.parent / nb.output.dir).resolve()
+
+    # Resolve source paths relative to the notebook's parent directory
+    nb.sources = [
+        str((notebook_path.parent / s).resolve()) if not Path(s).is_absolute() else s
+        for s in nb.sources
+    ]
+
+    state = run_pipeline(nb)
+
+    click.secho(f"\n{state.notebook.title}", fg="cyan", bold=True)
+    click.echo(f"  speakers:   {state.resolved.speaker.name}")
+    click.echo(f"  episode:    {state.resolved.episode.name}")
+    click.echo(f"  room:       {state.resolved.room.name}")
+    click.echo(f"  source:     {state.source_tokens_original:,} tokens")
+    click.echo(f"  outline:    {len(state.outline.segments) if state.outline else 0} segments")
+    click.echo(f"  transcript: {len(state.transcript.turns) if state.transcript else 0} turns")
+    click.echo(f"  audio:      {len(state.clips)} clips, "
+               f"{(len(state.combined_audio) // 1000) if state.combined_audio else 0}s combined")
+    click.echo(f"  cost:       ${state.cost.total_usd:.4f}")
+    click.secho(f"\nWrote outputs to {nb.output.dir}", fg="green")
