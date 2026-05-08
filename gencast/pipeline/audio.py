@@ -11,8 +11,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import numpy as np
 from pydub import AudioSegment
 
+from gencast.audio_fx import (
+    front_arc_azimuths,
+    render_clip_with_room,
+    speaker_seat_distance,
+)
+from gencast.audio_fx.ambience import make_ambience_bed, mix_ambience
+from gencast.audio_fx.normalize import peak_normalize
+from gencast.audio_fx.reverb import SchroederReverb
 from gencast.tts import TTSBackend, get_backend, split_sentences
 from gencast.tts.cache import TTSDiskCache, default_cache_dir
 
@@ -20,6 +29,7 @@ if TYPE_CHECKING:
     from gencast.pipeline import PodcastState
 
 INTER_TURN_PAUSE_MS = 300
+TARGET_SR = 44100
 
 
 @dataclass
@@ -63,7 +73,7 @@ async def run_audio_stage(
     cache_dir: Path | None = None,
     concurrency: int = 5,
 ) -> None:
-    """Populate state.clips and state.combined_audio. No spatial FX in Plan B Task 10."""
+    """Populate state.clips and state.combined_audio with per-clip room FX applied via render_clip_with_room."""
     assert state.transcript is not None, "transcript must be populated"
     sp = state.resolved.speaker
     if backend is None:
@@ -99,43 +109,76 @@ async def run_audio_stage(
 
     results = await asyncio.gather(*(_do(j) for j in jobs))
 
-    # Stitch clips with timing + record cost for non-cached
+    # Per-speaker azimuth + jitter
+    n_speakers = len(sp.speakers)
+    azimuths = front_arc_azimuths(n_speakers, state.resolved.room.arc_deg)
+    rng = np.random.default_rng(2026)
+    reverb = SchroederReverb(sample_rate=TARGET_SR, t60_s=state.resolved.room.reverb_t60_s)
+
     clips: list[AudioClip] = []
     cursor_ms = 0
     last_turn_index = -1
     combined = AudioSegment.empty()
 
-    for j, (audio, seconds, hit) in zip(jobs, results):
+    for j, (raw_audio, seconds, hit) in zip(jobs, results):
         turn_index, s_idx, speaker_name, sentence_text, seg_idx, voice, _ = j
         spk_idx = speaker_lookup[speaker_name][0]
+
+        # Per-sentence azimuth jitter
+        base_az = azimuths[spk_idx]
+        jit = (
+            (rng.random() * 2.0 - 1.0) * state.resolved.room.jitter_deg
+            if state.resolved.room.jitter_deg
+            else 0.0
+        )
+        az = base_az + jit
+        dist = speaker_seat_distance(az, state.resolved.room.table_radius_m)
+
+        # Apply per-clip room FX (mono → stereo with locked v1 chain)
+        spatial = render_clip_with_room(
+            raw_audio,
+            azimuth_deg=az, distance_m=dist,
+            room=state.resolved.room, reverb=reverb,
+            target_sr=TARGET_SR,
+        )
 
         if last_turn_index != -1 and turn_index != last_turn_index:
             cursor_ms += INTER_TURN_PAUSE_MS
             combined += AudioSegment.silent(
-                duration=INTER_TURN_PAUSE_MS, frame_rate=audio.frame_rate
-            ).set_channels(audio.channels)
+                duration=INTER_TURN_PAUSE_MS, frame_rate=TARGET_SR
+            ).set_channels(2)
 
         start = cursor_ms
-        end = cursor_ms + len(audio)
+        end = cursor_ms + len(spatial)
         clips.append(AudioClip(
             start_ms=start, end_ms=end,
             speaker_index=spk_idx, speaker_name=speaker_name,
             sentence_text=sentence_text, segment_index=seg_idx,
-            audio=audio,
+            audio=spatial,
         ))
-        combined += audio
+        combined += spatial
         cursor_ms = end
         last_turn_index = turn_index
 
         if not hit:
             usd = seconds * backend.usd_per_audio_second
             state.cost.record_tts(
-                "tts",
-                backend=backend.backend_name,
-                model=backend.model,
-                audio_seconds=seconds,
-                usd=usd,
+                "tts", backend=backend.backend_name, model=backend.model,
+                audio_seconds=seconds, usd=usd,
             )
+
+    # Stage-level: ambience bed + peak normalize
+    if state.resolved.room.ambience_db is not None:
+        ambience = make_ambience_bed(
+            duration_ms=len(combined),
+            sample_rate=TARGET_SR,
+            level_db=state.resolved.room.ambience_db,
+            lpf_hz=state.resolved.room.ambience_lpf_hz,
+            fan_rumble_db=state.resolved.room.ambience_fan_rumble_db,
+        )
+        combined = mix_ambience(combined, ambience)
+
+    combined = peak_normalize(combined, target_dbfs=state.resolved.room.target_dbfs)
 
     state.clips = clips
     state.combined_audio = combined
