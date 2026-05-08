@@ -76,6 +76,10 @@ include = ["gencast*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "strict"
+markers = [
+    "benchmark: wall-clock performance check (skip by default; run with -m benchmark)",
+]
+addopts = "-m 'not benchmark'"
 
 [tool.ruff]
 line-length = 100
