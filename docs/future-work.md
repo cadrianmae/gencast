@@ -4,6 +4,27 @@ Items deliberately out of scope for v1.0. Captured here so the v1 design
 keeps the small hooks each one needs without bloating v1 with the work
 itself.
 
+## Plan C — remaining v1.0.0 scope (not future-work, but staged)
+
+These are explicitly **in scope for v1.0.0** but were sequenced after
+Plan B's pipeline work. Tracked here for visibility; will move to a
+dedicated `docs/superpowers/plans/` doc when Plan C is authored.
+
+| Phase | Scope | Notes |
+|---|---|---|
+| 6 | Rich Live UI (`RichReporter` two-band layout) | Plain reporter ships in Plan B; Rich variant lands here |
+| 6 | `gencast init` interactive notebook wizard | Click-prompts; emits notebook.yaml |
+| 7 | Map-reduce summarization for oversize sources | `pipeline/preflight.py` already has the gate; map-reduce loop is the v1.0.0 component still missing |
+| 7 | `gencast subtitle EXISTING.mp3` (Whisper STT path) | Re-subtitle externally-provided audio. Survives from v0.6.x |
+| 7 | `--cache-llm` flag + `~/.cache/gencast/llm/` | LLM cache opt-in; TTS cache already always-on |
+| 7 | `gencast cache status` + `gencast cache clear [tts\|llm\|extract\|all]` | Manual cache management — no auto-eviction in v1.0.0 |
+| 8 | Test-pyramid completion + CI | Unit/component coverage from Plans A+B is solid; integration + E2E gates + GitHub Actions still TODO |
+| 8 | Cutover `rewrite/v1.0` → `main` and tag `v1.0.0` | Final step |
+
+End-of-Plan-A snapshot: 23 tasks merged, 115 tests passing.
+End-of-Plan-B snapshot: 20 additional tasks merged (T1–T20),
+229 tests passing, real-API smoke at $0.12 / 6:24 audio.
+
 ## Animated speaker avatars
 
 **v1 hooks reserved:**
