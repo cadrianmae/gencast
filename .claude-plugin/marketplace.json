@@ -1,0 +1,31 @@
+{
+  "name": "gencast",
+  "description": "AI podcast generation with conversational Claude Code skills. NotebookLM-style podcasts from documents, with cost-effective multi-provider support, spatial audio, and 4 bundled skills (notebook-init, source-check, review-transcript, cost-explain).",
+  "owner": {
+    "name": "Mae",
+    "email": "45900436+cadrianmae@users.noreply.github.com"
+  },
+  "plugins": [
+    {
+      "name": "gencast",
+      "source": ".",
+      "description": "Conversational interface to gencast — generate, review, and price NotebookLM-style podcasts from documents. Ships 4 skills (notebook-init, source-check, review-transcript, cost-explain) that shell out to the gencast CLI.",
+      "version": "1.2.0",
+      "author": {
+        "name": "Mae",
+        "email": "45900436+cadrianmae@users.noreply.github.com"
+      },
+      "homepage": "https://github.com/cadrianmae/gencast",
+      "repository": "https://github.com/cadrianmae/gencast",
+      "license": "MIT",
+      "keywords": [
+        "gencast",
+        "podcast",
+        "ai",
+        "notebooklm",
+        "tts",
+        "skills"
+      ]
+    }
+  ]
+}
