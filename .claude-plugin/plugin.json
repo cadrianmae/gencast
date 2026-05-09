@@ -1,0 +1,19 @@
+{
+  "name": "gencast",
+  "version": "1.2.0",
+  "description": "Conversational interface to gencast — generate, review, and price NotebookLM-style podcasts from documents",
+  "author": "cadrianmae",
+  "homepage": "https://github.com/cadrianmae/gencast",
+  "repository": "https://github.com/cadrianmae/gencast",
+  "license": "MIT",
+  "keywords": ["gencast", "podcast", "ai", "notebooklm"],
+  "skills": [
+    "./skills/notebook-init",
+    "./skills/source-check",
+    "./skills/review-transcript",
+    "./skills/cost-explain"
+  ],
+  "requires": {
+    "system": ["gencast>=1.2.0", "ffmpeg", "jq"]
+  }
+}
