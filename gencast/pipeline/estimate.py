@@ -134,3 +134,42 @@ def _estimate_transcript(
         output_tokens=output_tokens,
         usd=round(usd, 4),
     )
+
+
+# Average English chars-per-word including spaces/punctuation
+_CHARS_PER_WORD = 5.0
+
+
+def _estimate_tts(*, provider: str, model: str, num_segments: int) -> StageEstimate:
+    """TTS: characters = num_segments × words/segment × chars/word. Rate
+    depends on model (HD vs std vs local).
+    """
+    characters = int(num_segments * WORDS_PER_SEGMENT * _CHARS_PER_WORD)
+    if provider in LOCAL_PROVIDERS:
+        usd = 0.0
+    elif "hd" in (model or "").lower():
+        usd = (characters / 1000) * OPENAI_TTS_HD_PER_1K_CHARS
+    else:
+        usd = (characters / 1000) * OPENAI_TTS_STD_PER_1K_CHARS
+    return StageEstimate(
+        stage="tts",
+        provider=provider,
+        model=model,
+        characters=characters,
+        usd=round(usd, 4),
+    )
+
+
+def _estimate_whisper(*, num_segments: int) -> StageEstimate:
+    """Whisper: duration ≈ words spoken / words-per-minute. Rate is a
+    fixed OpenAI per-minute charge.
+    """
+    duration_minutes = (num_segments * WORDS_PER_SEGMENT) / WORDS_PER_MINUTE
+    usd = duration_minutes * OPENAI_WHISPER_PER_MINUTE
+    return StageEstimate(
+        stage="whisper",
+        provider="openai",
+        model="whisper-1",
+        duration_minutes=round(duration_minutes, 2),
+        usd=round(usd, 4),
+    )
