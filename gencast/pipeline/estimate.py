@@ -174,6 +174,37 @@ def _estimate_whisper(*, num_segments: int) -> StageEstimate:
     )
 
 
+# Models we always include in the rates table — bundled-profile defaults
+# plus the downgrade alternatives. Adding more here is cheap.
+_RATES_TABLE_MODELS: tuple[tuple[str, str], ...] = (
+    ("anthropic", "claude-haiku-4-5"),
+    ("anthropic", "claude-sonnet-4-5"),
+    ("anthropic", "claude-opus-4-7"),
+    ("openai",    "gpt-5"),
+    ("openai",    "gpt-5-mini"),
+    ("openai",    "gpt-4o"),
+    ("openai",    "gpt-4o-mini"),
+)
+
+
+def dump_rates_table() -> dict[str, dict[str, float]]:
+    """Return per-1k-token rates for the bundled-default models. Used by the
+    v1.2 cost-explain skill via `gencast estimate --rates-only --json`.
+    Models without a litellm.model_cost entry are silently omitted; local
+    providers (ollama, speaches) are not included (they're zero anyway).
+    """
+    out: dict[str, dict[str, float]] = {}
+    for provider, model in _RATES_TABLE_MODELS:
+        rate = _lookup_rate(provider, model)
+        if rate is None:
+            continue
+        out[f"{provider}/{model}"] = {
+            "input_per_1k": rate.input_per_1k,
+            "output_per_1k": rate.output_per_1k,
+        }
+    return out
+
+
 def estimate_notebook(nb: object) -> Estimate:
     """Predict total USD cost for running this notebook. Reads source
     files (no LLM calls), token-counts via tiktoken, projects output
