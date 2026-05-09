@@ -191,6 +191,57 @@ def subtitle(audio_path: Path, out_path: Path | None) -> None:
     click.secho(f"Wrote {out_path}", fg="green")
 
 
+@cli.command("estimate")
+@click.argument("notebook_path", required=False,
+                type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--json", "as_json", is_flag=True,
+              help="Emit machine-readable JSON instead of a table.")
+@click.option("--no-suggestions", is_flag=True,
+              help="Skip cheaper-model suggestions in human output.")
+@click.option("--rates-only", is_flag=True,
+              help="Dump the model-rate table only (no notebook required).")
+@click.option("--provider", "provider_filter", default=None,
+              help="Filter --rates-only to one provider (e.g. anthropic, openai, ollama).")
+@click.option("--all-models", is_flag=True,
+              help="With --rates-only: include every model LiteLLM knows (~2,700), not just bundled defaults.")
+def estimate(notebook_path: Path | None, as_json: bool, no_suggestions: bool,
+             rates_only: bool, provider_filter: str | None, all_models: bool) -> None:
+    """Predict USD cost for a notebook before running the pipeline."""
+    from gencast.pipeline.estimate import dump_rates_table, estimate_notebook
+    from gencast.cli.estimate_formatter import (
+        format_json, format_rates_json, format_rates_table, format_table,
+    )
+
+    if rates_only:
+        rates = dump_rates_table(provider_filter=provider_filter, all_models=all_models)
+        click.echo(format_rates_json(rates) if as_json else format_rates_table(rates))
+        return
+
+    if notebook_path is None:
+        raise click.UsageError("NOTEBOOK_PATH is required unless --rates-only is set.")
+
+    from gencast.notebook import load_notebook
+    nb = load_notebook(notebook_path)
+    est = estimate_notebook(nb)
+
+    if as_json:
+        click.echo(format_json(est))
+        return
+
+    if no_suggestions:
+        # Strip suggestions before formatting (Estimate is frozen, so rebuild)
+        from gencast.pipeline.estimate import Estimate
+        est = Estimate(
+            notebook_path=est.notebook_path,
+            source_tokens=est.source_tokens,
+            stages=est.stages,
+            total_usd=est.total_usd,
+            uncertainty_pct=est.uncertainty_pct,
+            suggestions=[],
+        )
+    click.echo(format_table(est))
+
+
 @cli.group("cache")
 def cache_group() -> None:
     """Inspect and clear gencast caches."""
