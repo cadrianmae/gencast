@@ -1,0 +1,3 @@
+include .claude-plugin/plugin.json
+include .claude-plugin/README.md
+recursive-include skills *.md
