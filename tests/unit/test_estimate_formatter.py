@@ -63,3 +63,38 @@ def test_format_table_no_suggestions_when_empty():
     from gencast.cli.estimate_formatter import format_table
     out = format_table(_example_estimate(with_suggestions=False))
     assert "Cheaper alternatives" not in out
+
+
+def test_format_json_round_trips():
+    import json
+    from gencast.cli.estimate_formatter import format_json
+    out = format_json(_example_estimate())
+    parsed = json.loads(out)
+    assert parsed["source_tokens"] == 12840
+    assert parsed["total_usd"] == 0.40
+    assert parsed["uncertainty_pct"] == 25
+    assert len(parsed["stages"]) == 5
+    # Stages keyed by name
+    assert parsed["stages"]["transcript"]["usd"] == 0.18
+    assert len(parsed["suggestions"]) == 1
+
+
+def test_format_rates_table_includes_per_1k_columns():
+    from gencast.cli.estimate_formatter import format_rates_table
+    rates = {
+        "anthropic/claude-haiku-4-5": {"input_per_1k": 0.001, "output_per_1k": 0.005},
+        "openai/gpt-5-mini": {"input_per_1k": 0.0003, "output_per_1k": 0.0024},
+    }
+    out = format_rates_table(rates)
+    assert "claude-haiku-4-5" in out
+    assert "gpt-5-mini" in out
+    assert "$0.0010" in out  # input rate appears formatted to 4 decimals
+    assert "input/1k" in out.lower() or "input per 1k" in out.lower()
+
+
+def test_format_rates_json_round_trips():
+    import json
+    from gencast.cli.estimate_formatter import format_rates_json
+    rates = {"anthropic/claude-haiku-4-5": {"input_per_1k": 0.001, "output_per_1k": 0.005}}
+    parsed = json.loads(format_rates_json(rates))
+    assert parsed["anthropic/claude-haiku-4-5"]["input_per_1k"] == 0.001

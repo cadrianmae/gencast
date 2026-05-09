@@ -63,3 +63,55 @@ def format_table(est: Estimate) -> str:
             lines.append(f"  {' ' * 12} ({sug.trade_off} trade-off — see docs)")
     lines.append("")
     return "\n".join(lines)
+
+
+def format_json(est: Estimate) -> str:
+    """Machine-readable estimate. Stages keyed by name, not list, so the schema
+    is easy for skills/scripts to consume.
+    """
+    payload = {
+        "notebook": str(est.notebook_path),
+        "source_tokens": est.source_tokens,
+        "stages": {
+            s.stage: {
+                "provider": s.provider,
+                "model": s.model,
+                **({"input_tokens": s.input_tokens} if s.input_tokens else {}),
+                **({"output_tokens": s.output_tokens} if s.output_tokens else {}),
+                **({"characters": s.characters} if s.characters else {}),
+                **({"duration_minutes": s.duration_minutes} if s.duration_minutes else {}),
+                "usd": s.usd,
+            } for s in est.stages
+        },
+        "total_usd": est.total_usd,
+        "uncertainty_pct": est.uncertainty_pct,
+        "suggestions": [
+            {
+                "stage": sug.stage,
+                "current": sug.current,
+                "alternative": sug.alternative,
+                "saves_usd": sug.saves_usd,
+                "saves_pct": sug.saves_pct,
+                "trade_off": sug.trade_off,
+            } for sug in est.suggestions
+        ],
+    }
+    return json.dumps(payload, indent=2)
+
+
+def format_rates_table(rates: dict[str, dict[str, float]]) -> str:
+    """Human-readable rate table for `gencast estimate --rates-only`."""
+    lines = []
+    lines.append(f"{'Model':<40} {'input/1k':>12} {'output/1k':>12}")
+    lines.append(f"{'-' * 40} {'-' * 12} {'-' * 12}")
+    for key, val in sorted(rates.items()):
+        inp = f"${val['input_per_1k']:.4f}"
+        out_col = f"${val['output_per_1k']:.4f}"
+        lines.append(f"{key:<40} {inp:>12} {out_col:>12}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def format_rates_json(rates: dict[str, dict[str, float]]) -> str:
+    """Machine-readable rate table — pass-through dict to JSON."""
+    return json.dumps(rates, indent=2)
