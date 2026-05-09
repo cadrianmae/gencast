@@ -227,3 +227,28 @@ def test_compute_suggestions_skips_extract_and_whisper():
     )
     # Neither has a downgrade target
     assert _compute_suggestions([extract, whisper]) == []
+
+
+def test_dump_rates_table_returns_dict():
+    from gencast.pipeline.estimate import dump_rates_table
+    rates = dump_rates_table()
+    # Must be a dict keyed by "provider/model" with input/output rates
+    assert isinstance(rates, dict)
+    assert len(rates) > 0
+    for key, val in rates.items():
+        assert "/" in key
+        assert "input_per_1k" in val
+        assert "output_per_1k" in val
+        assert val["input_per_1k"] >= 0.0
+
+
+def test_dump_rates_table_includes_bundled_models():
+    from gencast.pipeline.estimate import dump_rates_table
+    rates = dump_rates_table()
+    # All bundled-profile defaults should be present (or zero for local)
+    expected = [
+        "anthropic/claude-haiku-4-5",
+        "anthropic/claude-sonnet-4-5",
+    ]
+    for key in expected:
+        assert key in rates, f"missing rate for bundled-default model {key}"
