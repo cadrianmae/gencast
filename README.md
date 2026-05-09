@@ -119,6 +119,10 @@ gencast NB.yaml                       generate (alias for `gencast generate NB.y
 gencast init [--copy NB] [--minimal]  interactive notebook wizard
 gencast preview NB.yaml               outline-only dry run
 gencast generate NB.yaml              full pipeline -> m4a + sidecars
+gencast estimate NB.yaml [--json] [--no-suggestions]
+                                      predict USD cost before running. +-25% uncertainty.
+gencast estimate --rates-only [--json]
+                                      dump per-1k-token rates for bundled-default models.
 gencast list-profiles [--type X]      enumerate profiles in cascade
 gencast subtitle audio.mp3            re-subtitle external audio (Whisper)
 gencast cache status [--type X]       inspect cache sizes
@@ -126,6 +130,46 @@ gencast cache clear [--type X] [--yes]
 ```
 
 Verbosity: `-v`, `-vv`, `-q`, `--silent`, `--log-file PATH`.
+
+### Cost preview
+
+Predict cost before generating:
+
+```bash
+gencast estimate my-lecture.yaml
+# gencast estimate -- my-lecture.yaml
+# ================================================================
+# Source:    12,840 tokens  (1 file)
+#
+# Stage breakdown                                          est. USD
+# ------------------------------------------------------  --------
+# Extract                                                    $0.00
+# Outline      claude-haiku-4-5      . 13.0k in              $0.04
+# Transcript   claude-sonnet-4-5     . 6 segs/~1.4k          $0.18
+# TTS          openai/tts-1-hd       . ~4,500 chars          $0.14
+# Whisper      whisper-1             . ~6.0 min              $0.04
+#                                                          --------
+#                                                  Total:    $0.40
+#                                                            +-25%
+#
+# Cheaper alternatives
+#   transcript   claude-sonnet-4-5  -> claude-haiku-4-5  saves ~$0.13 (-72%)
+#                  (quality trade-off -- see docs)
+```
+
+For scripts and skills, use `--json`:
+
+```bash
+gencast estimate my-lecture.yaml --json
+```
+
+For the rate table only (used by Claude Code skills via dynamic context injection):
+
+```bash
+gencast estimate --rates-only --json
+gencast estimate --rates-only --provider anthropic --json
+gencast estimate --rates-only --all-models --json   # all ~2,700 LiteLLM models
+```
 
 ## Tests
 
