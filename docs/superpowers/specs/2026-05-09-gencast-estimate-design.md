@@ -8,7 +8,7 @@
 
 Add `gencast estimate <NB.yaml>` — a preflight cost prediction subcommand that
 prints a per-stage USD breakdown for a notebook *without* running the
-pipeline, so users can decide whether a notebook is worth $0.20 or $5
+pipeline, so users can decide whether a notebook is worth \$0.20 or \$5
 before committing to generation.
 
 ## Motivation
@@ -89,10 +89,14 @@ Cheaper alternatives
 
 ```
 gencast estimate NB.yaml [--json] [--no-suggestions]
+gencast estimate --rates-only [--json]
 ```
 
 - `--json` — emit JSON to stdout, suppress human table
 - `--no-suggestions` — skip cheaper-alternative suggestion block
+- `--rates-only` — dump just the model-rate table (no notebook
+  argument required); used by the v1.2 `cost-explain` Claude Code
+  skill via dynamic context injection
 
 ## Architecture
 

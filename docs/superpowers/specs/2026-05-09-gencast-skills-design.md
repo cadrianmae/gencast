@@ -130,6 +130,88 @@ gencast/
         └── SKILL.md
 ```
 
+### Dynamic context injection — the `` !`command` `` pattern
+
+Per Claude Code docs
+(https://code.claude.com/docs/en/skills.md#inject-dynamic-context),
+SKILL.md files support **inline shell substitution**: the syntax
+`` !`command` `` (or fenced ` ```! ` for multi-line) executes the
+command *when the skill loads*, substitutes its stdout into the prompt
+content, then sends the finalised prompt to the assistant. This is
+preprocessing, not a runtime tool call — fast, no per-call latency,
+and the skill prompt itself contains fresh data.
+
+Path-substitution variable `${CLAUDE_SKILL_DIR}` resolves to the
+skill's installed directory regardless of cwd, so bundled helper
+scripts work reliably.
+
+**Why this fits gencast skills better than a SessionStart hook:**
+
+- Per-skill, not per-session — only runs when the skill activates
+- No separate `hooks/hooks.json` — context lives next to the skill
+  prompt that uses it
+- Self-contained — the SKILL.md is the single source of truth for
+  what data the skill needs
+
+### What we inject and where
+
+| Skill | Injects | Why |
+|---|---|---|
+| `notebook-init` | `gencast list-profiles --json` | needs full profile catalogue to suggest choices |
+| `source-check` | `gencast --version` + `gencast list-profiles --json` (kind=episodes only) | needs to know which episode profiles are available; calls `gencast estimate` per-notebook (not preinjected — per-notebook is dynamic) |
+| `review-transcript` | nothing pre-injected | operates on `transcript.json` the user names; no static catalogue needed |
+| `cost-explain` | `gencast estimate --rates-only --json` | needs the rate table to compute "X% of cost is stage Y" ratios |
+
+### Example SKILL.md fragment
+
+`skills/notebook-init/SKILL.md`:
+
+````markdown
+---
+name: notebook-init
+description: Build a gencast notebook.yaml conversationally from candidate source files.
+---
+
+## Trigger phrases
+- "draft a gencast notebook from these notes"
+- "build a podcast notebook for [topic]"
+
+## Available profiles in this gencast install
+
+```!
+gencast list-profiles --json | jq -r '.[] | "- **\(.kind)/\(.name)**: \(.description // "(no description)")"'
+```
+
+## Workflow
+
+1. Verify gencast CLI works: !`gencast --version`
+2. Read the user's named source files
+3. Suggest a speaker / episode / room profile from the list above
+   based on source content
+4. Call `gencast init --out NB.yaml --minimal` and patch the YAML
+5. Optionally call `gencast preview NB.yaml` to show the outline
+````
+
+When the skill activates, the assistant sees the fully-rendered profile
+catalogue and version string baked into the prompt. No follow-up
+shell-out needed for that data; only per-notebook commands
+(`gencast init`, `gencast preview`) run via tool calls during the
+conversation.
+
+### New gencast CLI affordance needed for v1.1
+
+`cost-explain` injects `gencast estimate --rates-only --json` which
+needs a flag that doesn't require a notebook argument and dumps just
+the rate table. Adding this to the v1.1 estimate spec (small
+modification — separate code path that skips notebook loading).
+
+### Dependencies on the user's environment
+
+- `jq` for parsing JSON in the dynamic-context shell snippets. Add to
+  plugin Prerequisites in README — almost universally available on
+  modern systems; if missing, the snippet errors out and Claude Code
+  surfaces a clear loading error per the docs.
+
 ### `plugin.json` shape
 
 ```json
@@ -142,7 +224,7 @@ gencast/
   "skills": ["./skills/notebook-init", "./skills/source-check",
              "./skills/review-transcript", "./skills/cost-explain"],
   "requires": {
-    "system": ["gencast>=1.1.0", "ffmpeg"]
+    "system": ["gencast>=1.2.0", "ffmpeg", "jq"]
   }
 }
 ```
