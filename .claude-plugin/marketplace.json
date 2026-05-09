@@ -8,7 +8,10 @@
   "plugins": [
     {
       "name": "gencast",
-      "source": "./",
+      "source": {
+        "source": "github",
+        "repo": "cadrianmae/gencast"
+      },
       "description": "Conversational interface to gencast — generate, review, and price NotebookLM-style podcasts from documents. Ships 4 skills (notebook-init, source-check, review-transcript, cost-explain) that shell out to the gencast CLI.",
       "version": "1.2.0",
       "author": {
