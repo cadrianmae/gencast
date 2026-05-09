@@ -90,3 +90,22 @@ def _lookup_rate(provider: str, model: str) -> "_ModelRate | None":
     if inp is None or out is None:
         return None
     return _ModelRate(input_per_1k=inp * 1000, output_per_1k=out * 1000)
+
+
+def _estimate_outline(*, provider: str, model: str, source_tokens: int) -> StageEstimate:
+    """Outline stage: full source + small structured output."""
+    rate = _lookup_rate(provider, model)
+    usd = 0.0
+    if rate is not None:
+        usd = (
+            (source_tokens / 1000) * rate.input_per_1k
+            + (OUTLINE_OUTPUT_TOKENS / 1000) * rate.output_per_1k
+        )
+    return StageEstimate(
+        stage="outline",
+        provider=provider,
+        model=model,
+        input_tokens=source_tokens,
+        output_tokens=OUTLINE_OUTPUT_TOKENS,
+        usd=round(usd, 4),
+    )
