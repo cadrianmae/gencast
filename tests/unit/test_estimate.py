@@ -58,3 +58,36 @@ def test_heuristic_constants_present():
     assert e.TOKENS_PER_WORD == 1.5
     assert e.OPENAI_TTS_HD_PER_1K_CHARS == 0.030
     assert e.OPENAI_WHISPER_PER_MINUTE == 0.006
+
+
+def test_estimate_outline_known_model():
+    from gencast.pipeline.estimate import _estimate_outline, OUTLINE_OUTPUT_TOKENS
+    s = _estimate_outline(
+        provider="anthropic", model="claude-haiku-4-5",
+        source_tokens=12000,
+    )
+    assert s.stage == "outline"
+    assert s.provider == "anthropic"
+    assert s.model == "claude-haiku-4-5"
+    assert s.input_tokens == 12000
+    assert s.output_tokens == OUTLINE_OUTPUT_TOKENS
+    # If litellm has a rate for haiku, USD should be > 0; else 0
+    assert s.usd >= 0.0
+
+
+def test_estimate_outline_unknown_model_zero_usd():
+    from gencast.pipeline.estimate import _estimate_outline
+    s = _estimate_outline(
+        provider="anthropic", model="totally-fake-model",
+        source_tokens=10000,
+    )
+    assert s.usd == 0.0  # unknown rate → 0 (caller sees this and warns)
+
+
+def test_estimate_outline_local_zero_usd():
+    from gencast.pipeline.estimate import _estimate_outline
+    s = _estimate_outline(
+        provider="ollama", model="llama3.2",
+        source_tokens=10000,
+    )
+    assert s.usd == 0.0
