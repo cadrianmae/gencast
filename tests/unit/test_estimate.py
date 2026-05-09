@@ -252,3 +252,49 @@ def test_dump_rates_table_includes_bundled_models():
     ]
     for key in expected:
         assert key in rates, f"missing rate for bundled-default model {key}"
+
+
+def test_dump_rates_table_provider_filter_anthropic():
+    from gencast.pipeline.estimate import dump_rates_table
+    rates = dump_rates_table(provider_filter="anthropic")
+    # Every key in the result starts with "anthropic/"
+    assert len(rates) > 0
+    for key in rates:
+        assert key.startswith("anthropic/"), f"non-anthropic key {key!r} leaked through"
+
+
+def test_dump_rates_table_provider_filter_openai():
+    from gencast.pipeline.estimate import dump_rates_table
+    rates = dump_rates_table(provider_filter="openai")
+    assert len(rates) > 0
+    for key in rates:
+        assert key.startswith("openai/")
+
+
+def test_dump_rates_table_unknown_provider_returns_empty():
+    from gencast.pipeline.estimate import dump_rates_table
+    rates = dump_rates_table(provider_filter="totally-fake-provider")
+    assert rates == {}
+
+
+def test_dump_rates_table_all_models_includes_more_than_defaults():
+    from gencast.pipeline.estimate import dump_rates_table
+    defaults = dump_rates_table()  # bundled-default rows only
+    everything = dump_rates_table(all_models=True)
+    # `all_models` must surface strictly more entries than the default set
+    assert len(everything) > len(defaults)
+    # Sanity: rates dict shape unchanged
+    sample_key = next(iter(everything))
+    assert "input_per_1k" in everything[sample_key]
+    assert "output_per_1k" in everything[sample_key]
+
+
+def test_dump_rates_table_all_models_with_provider_filter():
+    from gencast.pipeline.estimate import dump_rates_table
+    rates = dump_rates_table(provider_filter="anthropic", all_models=True)
+    only_defaults = dump_rates_table(provider_filter="anthropic")
+    # Filtering by provider+all_models should return at least as many as
+    # the bundled-default-anthropic-only set
+    assert len(rates) >= len(only_defaults)
+    for key in rates:
+        assert key.startswith("anthropic/")
