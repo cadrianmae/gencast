@@ -29,3 +29,32 @@ def test_estimate_dataclass_shape():
                    total_usd=0.37)
     assert est.uncertainty_pct == 25  # default
     assert est.suggestions == []      # default
+
+
+def test_lookup_rate_known_anthropic_model():
+    from gencast.pipeline.estimate import _lookup_rate
+    rate = _lookup_rate("anthropic", "claude-haiku-4-5")
+    # Either valid rates returned, or None if litellm has no entry
+    assert rate is None or (rate.input_per_1k > 0 and rate.output_per_1k > 0)
+
+
+def test_lookup_rate_unknown_model_returns_none():
+    from gencast.pipeline.estimate import _lookup_rate
+    assert _lookup_rate("anthropic", "totally-fake-model-xyz") is None
+
+
+def test_lookup_rate_local_provider_returns_zero_rate():
+    from gencast.pipeline.estimate import _lookup_rate
+    rate = _lookup_rate("ollama", "llama3.2")
+    assert rate is not None
+    assert rate.input_per_1k == 0.0
+    assert rate.output_per_1k == 0.0
+
+
+def test_heuristic_constants_present():
+    from gencast.pipeline import estimate as e
+    assert e.OUTLINE_OUTPUT_TOKENS == 600
+    assert e.WORDS_PER_SEGMENT == 150
+    assert e.TOKENS_PER_WORD == 1.5
+    assert e.OPENAI_TTS_HD_PER_1K_CHARS == 0.030
+    assert e.OPENAI_WHISPER_PER_MINUTE == 0.006
