@@ -61,7 +61,11 @@ def load_notebook(path: str | Path) -> Notebook:
     path = Path(path)
     with path.open() as f:
         data = yaml.safe_load(f) or {}
-    return Notebook(**data)
+    nb = Notebook(**data)
+    # Attach source path so estimate/reporting can display a meaningful file name.
+    # object.__setattr__ bypasses Pydantic's frozen/strict mode.
+    object.__setattr__(nb, "_source_path", path)
+    return nb
 
 
 import re
