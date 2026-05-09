@@ -187,14 +187,38 @@ _RATES_TABLE_MODELS: tuple[tuple[str, str], ...] = (
 )
 
 
-def dump_rates_table() -> dict[str, dict[str, float]]:
-    """Return per-1k-token rates for the bundled-default models. Used by the
-    v1.2 cost-explain skill via `gencast estimate --rates-only --json`.
-    Models without a litellm.model_cost entry are silently omitted; local
-    providers (ollama, speaches) are not included (they're zero anyway).
+def dump_rates_table(
+    *,
+    provider_filter: str | None = None,
+    all_models: bool = False,
+) -> dict[str, dict[str, float]]:
+    """Return per-1k-token rates for the bundled-default models.
+
+    With `all_models=True`, expands to every model LiteLLM knows about
+    via `litellm.models_by_provider` (~2,700 models across 15+
+    providers). With `provider_filter="anthropic"`, returns only that
+    provider's models. The two flags compose.
+
+    Used by the v1.2 cost-explain + notebook-init Claude Code skills
+    via `gencast estimate --rates-only --json [--provider X] [--all-models]`.
     """
+    candidates: list[tuple[str, str]] = []
+
+    if all_models:
+        import litellm
+        for provider, model_set in litellm.models_by_provider.items():
+            if provider_filter and provider != provider_filter:
+                continue
+            for model in model_set:
+                candidates.append((provider, model))
+    else:
+        for provider, model in _RATES_TABLE_MODELS:
+            if provider_filter and provider != provider_filter:
+                continue
+            candidates.append((provider, model))
+
     out: dict[str, dict[str, float]] = {}
-    for provider, model in _RATES_TABLE_MODELS:
+    for provider, model in candidates:
         rate = _lookup_rate(provider, model)
         if rate is None:
             continue
