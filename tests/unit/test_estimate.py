@@ -173,5 +173,57 @@ def test_estimate_notebook_smoke_fixture():
     # Extract is always $0
     extract = next(s for s in est.stages if s.stage == "extract")
     assert extract.usd == 0.0
-    # No suggestions yet (T7 adds them)
-    assert est.suggestions == []
+    # suggestions is a list (T7 populates it)
+    assert isinstance(est.suggestions, list)
+
+
+def test_compute_suggestions_emits_when_savings_exceed_10pct():
+    from gencast.pipeline.estimate import (
+        _compute_suggestions, StageEstimate, _lookup_rate,
+    )
+    # Use a sonnet→haiku downgrade. Skip if litellm doesn't have rates.
+    sonnet = _lookup_rate("anthropic", "claude-sonnet-4-5")
+    haiku = _lookup_rate("anthropic", "claude-haiku-4-5")
+    if sonnet is None or haiku is None or sonnet.input_per_1k == haiku.input_per_1k:
+        pytest.skip("litellm doesn't have rates for both models, or rates equal")
+
+    transcript_stage = StageEstimate(
+        stage="transcript",
+        provider="anthropic",
+        model="claude-sonnet-4-5",
+        input_tokens=12000,
+        output_tokens=1350,
+        usd=0.18,  # arbitrary positive
+    )
+    suggestions = _compute_suggestions([transcript_stage])
+    assert len(suggestions) == 1
+    sug = suggestions[0]
+    assert sug.stage == "transcript"
+    assert sug.alternative == "anthropic/claude-haiku-4-5"
+    assert sug.saves_pct >= 10
+    assert sug.trade_off == "quality"
+
+
+def test_compute_suggestions_skips_below_10pct():
+    from gencast.pipeline.estimate import (
+        _compute_suggestions, StageEstimate, DOWNGRADES,
+    )
+    # Construct a stage whose model isn't in DOWNGRADES
+    stage = StageEstimate(
+        stage="outline",
+        provider="anthropic",
+        model="claude-haiku-4-5",  # already cheapest, no downgrade target
+        input_tokens=10000, output_tokens=600, usd=0.005,
+    )
+    assert _compute_suggestions([stage]) == []
+
+
+def test_compute_suggestions_skips_extract_and_whisper():
+    from gencast.pipeline.estimate import _compute_suggestions, StageEstimate
+    extract = StageEstimate(stage="extract", provider=None, model=None, usd=0.0)
+    whisper = StageEstimate(
+        stage="whisper", provider="openai", model="whisper-1",
+        duration_minutes=6.5, usd=0.04,
+    )
+    # Neither has a downgrade target
+    assert _compute_suggestions([extract, whisper]) == []
