@@ -228,9 +228,65 @@ def estimate_notebook(nb: object) -> Estimate:
     total = round(sum(s.usd for s in stages), 4)
 
     notebook_path = getattr(nb, "_source_path", Path("(unsaved)"))
+    suggestions = _compute_suggestions(stages)
     return Estimate(
         notebook_path=notebook_path,
         source_tokens=source_tokens,
         stages=stages,
         total_usd=total,
+        suggestions=suggestions,
     )
+
+
+# Cheaper-model alternatives for the LLM stages. Caller emits a
+# Suggestion only when the swap saves >10% on that stage.
+DOWNGRADES: dict[str, tuple[str, str]] = {
+    # current "provider/model": (alternative "provider/model", trade_off_label)
+    "anthropic/claude-sonnet-4-5":  ("anthropic/claude-haiku-4-5",  "quality"),
+    "anthropic/claude-opus-4-7":    ("anthropic/claude-sonnet-4-5", "quality"),
+    "openai/gpt-5":                 ("openai/gpt-5-mini",           "quality"),
+    "openai/gpt-5-mini":            ("openai/gpt-4o-mini",          "quality"),
+    "openai/gpt-4o":                ("openai/gpt-4o-mini",          "quality"),
+}
+
+_SUGGESTION_THRESHOLD_PCT = 10
+
+
+def _compute_suggestions(stages: list[StageEstimate]) -> list[Suggestion]:
+    """For each LLM stage, look up a cheaper model and emit a Suggestion if
+    the swap saves more than _SUGGESTION_THRESHOLD_PCT.
+    """
+    suggestions: list[Suggestion] = []
+    for s in stages:
+        if s.stage not in ("outline", "transcript"):
+            continue
+        if s.provider is None or s.model is None:
+            continue
+        current_key = f"{s.provider}/{s.model}"
+        if current_key not in DOWNGRADES:
+            continue
+        alt_key, trade_off = DOWNGRADES[current_key]
+        alt_provider, _, alt_model = alt_key.partition("/")
+        alt_rate = _lookup_rate(alt_provider, alt_model)
+        if alt_rate is None:
+            continue
+        alt_usd = round(
+            (s.input_tokens / 1000) * alt_rate.input_per_1k
+            + (s.output_tokens / 1000) * alt_rate.output_per_1k,
+            4,
+        )
+        if s.usd <= 0:
+            continue
+        saves_usd = round(s.usd - alt_usd, 4)
+        saves_pct = int(round((saves_usd / s.usd) * 100))
+        if saves_pct < _SUGGESTION_THRESHOLD_PCT:
+            continue
+        suggestions.append(Suggestion(
+            stage=s.stage,
+            current=current_key,
+            alternative=alt_key,
+            saves_usd=saves_usd,
+            saves_pct=saves_pct,
+            trade_off=trade_off,
+        ))
+    return suggestions
