@@ -83,9 +83,32 @@ def cli(ctx: click.Context, verbose: bool, debug: bool, quiet: bool, silent: boo
     default="all",
     help="Which profile kind to list.",
 )
-def list_profiles(kind: str) -> None:
+@click.option("--json", "as_json", is_flag=True, default=False, help="Output JSON array.")
+def list_profiles(kind: str, as_json: bool) -> None:
     """List available profiles from the 3-level cascade (project, user, bundled)."""
+    import json as _json
+
     kinds = ["speakers", "episodes", "rooms"] if kind == "all" else [kind]
+
+    if as_json:
+        from gencast.profiles.loader import load_profile
+        rows: list[dict[str, object]] = []
+        for k in kinds:
+            names = list_profile_names(k)  # type: ignore[arg-type]
+            for name in names:
+                try:
+                    profile = load_profile(k, name)  # type: ignore[arg-type]
+                    description = getattr(profile, "description", None)
+                except Exception:
+                    description = None
+                try:
+                    orig = origin_marker(k, name)  # type: ignore[arg-type]
+                except ProfileNotFoundError:
+                    orig = "?"
+                rows.append({"kind": k, "name": name, "description": description, "origin": orig})
+        click.echo(_json.dumps(rows, indent=2))
+        return
+
     for k in kinds:
         click.secho(f"\n{k}:", fg="cyan", bold=True)
         names = list_profile_names(k)  # type: ignore[arg-type]

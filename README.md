@@ -188,6 +188,29 @@ GENCAST_TEST_AUDIO=1 pytest tests/audio    # TTS + spatial audio (requires OPENA
 - [Plan C -- finishing](docs/superpowers/plans/2026-05-08-gencast-v1-plan-c-finishing.md)
 - [Future work](docs/future-work.md)
 
+## Claude Code integration
+
+gencast ships with a Claude Code plugin that exposes four skills for conversational use inside Claude Code. The plugin is bundled with the `gencast` Python package — no separate install once you have `pip install gencast>=1.2.0`.
+
+In Claude Code, install the plugin once:
+
+```
+/plugin install gencast
+```
+
+Then trigger any of the four skills with natural language:
+
+| Skill | Example trigger | What it does |
+|---|---|---|
+| `notebook-init` | "draft a gencast notebook from these notes" | Builds `notebook.yaml` conversationally; picks profiles from the bundled catalogue. |
+| `source-check` | "are these sources good for a podcast?" | Token-counts sources and predicts USD cost via `gencast estimate`. |
+| `review-transcript` | "review this gencast transcript" | Reads `transcript.json`, flags awkward phrasings + flow problems. Advisory only — does not auto-regenerate. |
+| `cost-explain` | "explain my gencast cost.json" | Plain-language cost-by-stage breakdown with optimisation suggestions. |
+
+Skills are workflow recipes that shell out to the gencast CLI. The CLI remains the source of truth and is fully usable without Claude Code or the plugin.
+
+Source for the skills lives at `skills/` in the gencast repo — see `.claude-plugin/plugin.json` for the manifest.
+
 ## License
 
 MIT.
