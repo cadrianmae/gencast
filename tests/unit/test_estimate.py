@@ -58,3 +58,42 @@ def test_heuristic_constants_present():
     assert e.TOKENS_PER_WORD == 1.5
     assert e.OPENAI_TTS_HD_PER_1K_CHARS == 0.030
     assert e.OPENAI_WHISPER_PER_MINUTE == 0.006
+
+
+def test_estimate_tts_six_segments_hd():
+    from gencast.pipeline.estimate import (
+        _estimate_tts, WORDS_PER_SEGMENT, OPENAI_TTS_HD_PER_1K_CHARS,
+    )
+    s = _estimate_tts(provider="openai", model="tts-1-hd", num_segments=6)
+    assert s.stage == "tts"
+    # 6 segs * 150 words * ~5 chars/word = ~4500 chars
+    assert s.characters >= 4000
+    expected_usd = round((s.characters / 1000) * OPENAI_TTS_HD_PER_1K_CHARS, 4)
+    assert s.usd == expected_usd
+
+
+def test_estimate_tts_standard_rate():
+    from gencast.pipeline.estimate import _estimate_tts, OPENAI_TTS_STD_PER_1K_CHARS
+    s = _estimate_tts(provider="openai", model="tts-1", num_segments=6)
+    expected_usd = round((s.characters / 1000) * OPENAI_TTS_STD_PER_1K_CHARS, 4)
+    assert s.usd == expected_usd
+
+
+def test_estimate_tts_local_zero_usd():
+    from gencast.pipeline.estimate import _estimate_tts
+    s = _estimate_tts(provider="speaches", model="kokoro", num_segments=6)
+    assert s.usd == 0.0
+
+
+def test_estimate_whisper_six_segments():
+    from gencast.pipeline.estimate import (
+        _estimate_whisper, WORDS_PER_SEGMENT, WORDS_PER_MINUTE,
+        OPENAI_WHISPER_PER_MINUTE,
+    )
+    s = _estimate_whisper(num_segments=6)
+    expected_minutes = (6 * WORDS_PER_SEGMENT) / WORDS_PER_MINUTE  # 6.0
+    assert abs(s.duration_minutes - expected_minutes) < 0.01
+    expected_usd = round(expected_minutes * OPENAI_WHISPER_PER_MINUTE, 4)
+    assert s.usd == expected_usd
+    assert s.provider == "openai"
+    assert s.model == "whisper-1"
