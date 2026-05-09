@@ -90,3 +90,28 @@ def _lookup_rate(provider: str, model: str) -> "_ModelRate | None":
     if inp is None or out is None:
         return None
     return _ModelRate(input_per_1k=inp * 1000, output_per_1k=out * 1000)
+
+
+def _estimate_transcript(
+    *, provider: str, model: str, source_tokens: int, num_segments: int,
+) -> StageEstimate:
+    """Transcript stage: full source as input per segment (prompt caching makes
+    the cached prefix cheap, but we estimate without cache awareness — see spec
+    Edge Cases). Output tokens scale with segments * words/segment.
+    """
+    output_tokens = int(num_segments * WORDS_PER_SEGMENT * TOKENS_PER_WORD)
+    rate = _lookup_rate(provider, model)
+    usd = 0.0
+    if rate is not None:
+        usd = (
+            (source_tokens / 1000) * rate.input_per_1k
+            + (output_tokens / 1000) * rate.output_per_1k
+        )
+    return StageEstimate(
+        stage="transcript",
+        provider=provider,
+        model=model,
+        input_tokens=source_tokens,
+        output_tokens=output_tokens,
+        usd=round(usd, 4),
+    )
