@@ -91,3 +91,27 @@ def test_estimate_outline_local_zero_usd():
         source_tokens=10000,
     )
     assert s.usd == 0.0
+
+
+def test_estimate_transcript_six_segments():
+    from gencast.pipeline.estimate import (
+        _estimate_transcript, WORDS_PER_SEGMENT, TOKENS_PER_WORD,
+    )
+    s = _estimate_transcript(
+        provider="anthropic", model="claude-sonnet-4-5",
+        source_tokens=12000, num_segments=6,
+    )
+    assert s.stage == "transcript"
+    expected_output = int(6 * WORDS_PER_SEGMENT * TOKENS_PER_WORD)  # 1350
+    assert s.output_tokens == expected_output
+    assert s.input_tokens == 12000
+    assert s.usd >= 0.0
+
+
+def test_estimate_transcript_zero_segments_zero_output():
+    from gencast.pipeline.estimate import _estimate_transcript
+    s = _estimate_transcript(
+        provider="anthropic", model="claude-sonnet-4-5",
+        source_tokens=12000, num_segments=0,
+    )
+    assert s.output_tokens == 0

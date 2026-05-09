@@ -109,3 +109,28 @@ def _estimate_outline(*, provider: str, model: str, source_tokens: int) -> Stage
         output_tokens=OUTLINE_OUTPUT_TOKENS,
         usd=round(usd, 4),
     )
+
+
+def _estimate_transcript(
+    *, provider: str, model: str, source_tokens: int, num_segments: int,
+) -> StageEstimate:
+    """Transcript stage: full source as input per segment (prompt caching makes
+    the cached prefix cheap, but we estimate without cache awareness — see spec
+    Edge Cases). Output tokens scale with segments * words/segment.
+    """
+    output_tokens = int(num_segments * WORDS_PER_SEGMENT * TOKENS_PER_WORD)
+    rate = _lookup_rate(provider, model)
+    usd = 0.0
+    if rate is not None:
+        usd = (
+            (source_tokens / 1000) * rate.input_per_1k
+            + (output_tokens / 1000) * rate.output_per_1k
+        )
+    return StageEstimate(
+        stage="transcript",
+        provider=provider,
+        model=model,
+        input_tokens=source_tokens,
+        output_tokens=output_tokens,
+        usd=round(usd, 4),
+    )
