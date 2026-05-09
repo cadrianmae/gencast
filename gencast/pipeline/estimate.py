@@ -172,3 +172,65 @@ def _estimate_whisper(*, num_segments: int) -> StageEstimate:
         duration_minutes=round(duration_minutes, 2),
         usd=round(usd, 4),
     )
+
+
+def estimate_notebook(nb: object) -> Estimate:
+    """Predict total USD cost for running this notebook. Reads source
+    files (no LLM calls), token-counts via tiktoken, projects output
+    using heuristic constants, looks up rates via litellm.model_cost.
+    """
+    from gencast.notebook import Notebook, resolve_notebook
+    from gencast.pipeline.extract import extract_sources
+
+    assert isinstance(nb, Notebook)
+    resolved = resolve_notebook(nb)
+
+    # Resolve source paths relative to the notebook file (if available).
+    notebook_dir = getattr(nb, "_source_path", Path("."))
+    if isinstance(notebook_dir, Path) and notebook_dir.is_file():
+        notebook_dir = notebook_dir.parent
+    else:
+        notebook_dir = Path(".")
+    sources = [
+        notebook_dir / s if not Path(s).is_absolute() else Path(s)
+        for s in nb.sources
+    ]
+
+    _source_text, source_tokens = extract_sources(
+        sources,
+        model=f"{resolved.outline_provider}/{resolved.outline_model}",
+    )
+
+    # Extract is always $0 (local file I/O + tiktoken)
+    extract_stage = StageEstimate(
+        stage="extract", provider=None, model=None, usd=0.0,
+    )
+
+    outline = _estimate_outline(
+        provider=resolved.outline_provider,
+        model=resolved.outline_model,
+        source_tokens=source_tokens,
+    )
+    transcript = _estimate_transcript(
+        provider=resolved.transcript_provider,
+        model=resolved.transcript_model,
+        source_tokens=source_tokens,
+        num_segments=resolved.num_segments,
+    )
+    tts = _estimate_tts(
+        provider=resolved.speaker.tts_provider,
+        model=resolved.speaker.tts_model,
+        num_segments=resolved.num_segments,
+    )
+    whisper = _estimate_whisper(num_segments=resolved.num_segments)
+
+    stages = [extract_stage, outline, transcript, tts, whisper]
+    total = round(sum(s.usd for s in stages), 4)
+
+    notebook_path = getattr(nb, "_source_path", Path("(unsaved)"))
+    return Estimate(
+        notebook_path=notebook_path,
+        source_tokens=source_tokens,
+        stages=stages,
+        total_usd=total,
+    )

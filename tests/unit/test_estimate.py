@@ -154,3 +154,24 @@ def test_estimate_whisper_six_segments():
     assert s.usd == expected_usd
     assert s.provider == "openai"
     assert s.model == "whisper-1"
+
+
+def test_estimate_notebook_smoke_fixture():
+    from gencast.notebook import load_notebook
+    from gencast.pipeline.estimate import estimate_notebook
+    nb = load_notebook("tests/fixtures/notebooks/smoke.yaml")
+    est = estimate_notebook(nb)
+    # Five stages: extract + outline + transcript + tts + whisper
+    assert len(est.stages) == 5
+    assert {s.stage for s in est.stages} == {
+        "extract", "outline", "transcript", "tts", "whisper",
+    }
+    # Total = sum of stage USDs
+    assert abs(est.total_usd - sum(s.usd for s in est.stages)) < 0.0001
+    assert est.uncertainty_pct == 25
+    assert est.source_tokens > 0
+    # Extract is always $0
+    extract = next(s for s in est.stages if s.stage == "extract")
+    assert extract.usd == 0.0
+    # No suggestions yet (T7 adds them)
+    assert est.suggestions == []
