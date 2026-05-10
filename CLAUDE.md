@@ -133,6 +133,10 @@ For multi-task plans, the controller (you) creates per-task git worktrees branch
 
 **Critical**: always run merge commands with `git -C <trunk-worktree-path>` or after `cd`-ing into the trunk worktree. Bash tool calls don't persist cwd between invocations — running `git merge` from the main repo cwd silently merges into `main` instead of the integration branch. Same root cause for both v1.0 and v1.1 cutover incidents.
 
+## Editor LSP
+
+The project ships `.claude/settings.json` with `pyright-lsp@claude-plugins-official` enabled. It needs the `pyright` binary on PATH — collaborators install once with `pipx install pyright` (or `pip install pyright` / `npm install -g pyright`). The strict basedpyright lives in the `[dev]` extras and runs in CI / the `gencast-release-prep` skill; pyright-lsp covers the in-editor case.
+
 ## Critical reminders
 
 - Tests use `PYTHONPATH=.` — pytest does not auto-discover the package without it.
