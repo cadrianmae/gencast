@@ -21,7 +21,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/scripts/pre-edit-plugin-author-guard.sh"
+            "command": "python3 .claude/scripts/pre-edit-plugin-schema-guard.py"
           }
         ]
       }
