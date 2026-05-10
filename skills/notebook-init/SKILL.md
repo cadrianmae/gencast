@@ -17,7 +17,7 @@ gencast list-profiles --json | jq -r '.[] | "- **\(.kind)/\(.name)**: \(.descrip
 
 ## Prerequisites
 
-- `gencast>=1.2.0` on `PATH`. Verify with: !`gencast --version 2>/dev/null || echo "MISSING"`
+- `gencast>=1.2.0` on `PATH`. Verify with: !`gencast --version 2>/dev/null | python3 -c "import sys,re; v=sys.stdin.read().strip(); m=re.search(r'(\d+)\.(\d+)', v); sys.exit(1) if not v else print(v if m and (int(m[1]),int(m[2]))>=(1,2) else f'TOO OLD: need gencast>=1.2.0, found {v} — run: pipx upgrade gencast')" 2>/dev/null || echo "MISSING — install with: pipx install gencast"`
 - A directory containing the candidate source files the user named.
 
 If the version check above prints `MISSING`, stop and tell the user to install gencast.
