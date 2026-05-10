@@ -1,6 +1,11 @@
 """gencast — generate conversational podcasts from documents."""
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
-__version__ = "1.0.0a1"
+try:
+    __version__ = _pkg_version("gencast")
+except PackageNotFoundError:
+    # Source checkout without an editable install — fall back to a sentinel so
+    # `gencast --version` still returns *something* parseable.
+    __version__ = "0.0.0+source"
 
-# Public API populated as later phases land
 __all__ = ["__version__"]
