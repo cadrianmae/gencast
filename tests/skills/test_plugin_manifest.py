@@ -33,7 +33,11 @@ def test_plugin_manifest_exists_and_parses():
     data = json.loads(PLUGIN_MANIFEST.read_text())
     manifest = PluginManifest(**data)
     assert manifest.name == "gencast"
-    assert manifest.version.startswith("1.2.")
+    # Match anything semver-shaped — version bumps each release; this assertion
+    # should not need updating each time. Strict parity vs pyproject.toml is
+    # enforced by tests/unit/test_version_parity.py.
+    import re
+    assert re.match(r"^\d+\.\d+\.\d+", manifest.version), manifest.version
 
 
 def test_plugin_manifest_lists_four_skills():
