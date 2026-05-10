@@ -39,12 +39,14 @@ def test_plugin_manifest_exists_and_parses():
 def test_plugin_manifest_lists_four_skills():
     data = json.loads(PLUGIN_MANIFEST.read_text())
     skills = data.get("skills", [])
-    assert len(skills) == 4
+    assert len(skills) == 6
     expected = {
         "./skills/notebook-init",
         "./skills/source-check",
         "./skills/review-transcript",
         "./skills/cost-explain",
+        "./skills/bug",
+        "./skills/feature",
     }
     assert set(skills) == expected
 
