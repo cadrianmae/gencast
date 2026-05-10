@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 try:
-    from rich.console import Console
+    from rich.console import Console, Group
     from rich.live import Live
     from rich.panel import Panel
     from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
@@ -134,9 +134,11 @@ class RichReporter(Reporter):
     def _render(self) -> Panel:
         if self._progress is None:
             return Panel("starting...", border_style="cyan")
+        # Group composes renderables so the Progress bar actually renders;
+        # f-stringing it would call __repr__ and print '<rich.progress.Progress object at 0x...>'.
         return Panel(
-            f"{self._progress}\n\n  {self._latest_activity}",
-            title=f"gencast",
+            Group(self._progress, "", f"  {self._latest_activity}"),
+            title="gencast",
             border_style="cyan",
         )
 

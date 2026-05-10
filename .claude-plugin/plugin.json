@@ -1,6 +1,6 @@
 {
   "name": "gencast",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Conversational interface to gencast — generate, review, and price NotebookLM-style podcasts from documents",
   "author": {
     "name": "Mae",
@@ -19,6 +19,6 @@
     "./skills/feature"
   ],
   "requires": {
-    "system": ["gencast>=1.2.4", "ffmpeg", "jq"]
+    "system": ["gencast>=1.2.5", "ffmpeg", "jq"]
   }
 }
