@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
+from typing import Callable
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pydantic import BaseModel, ConfigDict, Field
@@ -87,6 +89,42 @@ def _strip_code_fence(s: str) -> str:
     return m.group(1) if m else s
 
 
+# Match one complete `{"speaker": "X", "text": "Y"}` object on the streaming
+# JSON buffer. Non-greedy `text` with JSON-escape awareness (\\, \", etc).
+_TURN_RE = re.compile(
+    r'\{\s*"speaker"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*,'
+    r'\s*"text"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*\}'
+)
+
+
+class _TurnStreamFilter:
+    """Wrap a reporter's stream_chunk so transcript JSON renders as `Speaker: text`
+    one line per complete turn, instead of the raw JSON tokens.
+    """
+
+    def __init__(self, emit: Callable[[str], None]):
+        self._emit = emit
+        self._buffer = ""
+        self._cursor = 0  # byte offset already-scanned in self._buffer
+
+    def feed(self, chunk: str) -> None:
+        self._buffer += chunk
+        for m in _TURN_RE.finditer(self._buffer, self._cursor):
+            speaker = self._unescape(m.group(1))
+            text = self._unescape(m.group(2)).replace("\n", " ").strip()
+            self._emit(f"{speaker}: {text}\n")
+            self._cursor = m.end()
+
+    @staticmethod
+    def _unescape(s: str) -> str:
+        # Minimal JSON string unescape — \", \\, \n, \t, \/.
+        return (s.replace(r'\"', '"')
+                 .replace(r'\\', '\\')
+                 .replace(r'\n', ' ')
+                 .replace(r'\t', ' ')
+                 .replace(r'\/', '/'))
+
+
 def run_transcript_stage(
     *,
     briefing: str,
@@ -115,12 +153,14 @@ def run_transcript_stage(
         messages = build_cached_messages(
             provider=transcript_provider, prefix=prefix, suffix=suffix,
         )
+        on_chunk: Callable[[str], None] | None = None
         if reporter is not None:
             reporter.stream_open(
                 title=f"transcript segment {seg_index + 1}/{len(outline.segments)}",
                 mode="rolling",
                 max_lines=5,
             )
+            on_chunk = _TurnStreamFilter(reporter.stream_chunk).feed
         response = chat_completion(
             provider=transcript_provider,
             model=transcript_model,
@@ -129,7 +169,7 @@ def run_transcript_stage(
             max_tokens=5000,
             cost_meter=cost_meter,
             stage="transcript",
-            on_chunk=(reporter.stream_chunk if reporter is not None else None),
+            on_chunk=on_chunk,
         )
         if reporter is not None:
             reporter.stream_close()
