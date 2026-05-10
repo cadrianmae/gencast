@@ -80,12 +80,20 @@ def run_outline_stage(
     reporter: "Reporter | None" = None,
 ) -> Outline:
     """Generate the podcast outline. One LLM call, JSON-structured output."""
+    on_chunk = None
     if reporter is not None:
         reporter.stage_start(5, 10, "Outline")
         reporter.stage_activity(
             f"[{outline_provider}/{outline_model}] generating {num_segments} segments"
         )
-        reporter.stream_open(title="outline", mode="full")
+        # Outline JSON is short — use rolling 5-line preview that shows
+        # 'name: description' per segment as the stream arrives.
+        reporter.stream_open(title="outline", mode="rolling", max_lines=5)
+        from gencast.pipeline.stream_filter import (
+            JsonObjectStreamFilter,
+            outline_segment_emitter,
+        )
+        on_chunk = JsonObjectStreamFilter(outline_segment_emitter(reporter.stream_chunk)).feed
 
     prompt = render_outline_prompt(
         briefing=briefing, content=content, speakers=speakers,
@@ -99,7 +107,7 @@ def run_outline_stage(
         max_tokens=3000,
         cost_meter=cost_meter,
         stage="outline",
-        on_chunk=(reporter.stream_chunk if reporter is not None else None),
+        on_chunk=on_chunk,
     )
 
     if reporter is not None:

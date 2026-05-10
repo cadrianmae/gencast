@@ -9,6 +9,8 @@ from typing import Callable
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pydantic import BaseModel, ConfigDict, Field
 
+from gencast.pipeline.stream_filter import JsonObjectStreamFilter, transcript_turn_emitter
+
 from gencast.pipeline.outline import OutlineSegment
 from gencast.profiles.schemas import Speaker
 
@@ -89,40 +91,17 @@ def _strip_code_fence(s: str) -> str:
     return m.group(1) if m else s
 
 
-# Match one complete `{"speaker": "X", "text": "Y"}` object on the streaming
-# JSON buffer. Non-greedy `text` with JSON-escape awareness (\\, \", etc).
-_TURN_RE = re.compile(
-    r'\{\s*"speaker"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*,'
-    r'\s*"text"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*\}'
-)
-
-
+# Backward-compat shim — older imports + the v1.3.1 unit tests use this name.
 class _TurnStreamFilter:
-    """Wrap a reporter's stream_chunk so transcript JSON renders as `Speaker: text`
-    one line per complete turn, instead of the raw JSON tokens.
+    """Schema-aware streaming filter for transcript JSON. Emits one
+    'Speaker: text\\n' line per complete turn object as the stream arrives.
     """
 
     def __init__(self, emit: Callable[[str], None]):
-        self._emit = emit
-        self._buffer = ""
-        self._cursor = 0  # byte offset already-scanned in self._buffer
+        self._inner = JsonObjectStreamFilter(transcript_turn_emitter(emit))
 
     def feed(self, chunk: str) -> None:
-        self._buffer += chunk
-        for m in _TURN_RE.finditer(self._buffer, self._cursor):
-            speaker = self._unescape(m.group(1))
-            text = self._unescape(m.group(2)).replace("\n", " ").strip()
-            self._emit(f"{speaker}: {text}\n")
-            self._cursor = m.end()
-
-    @staticmethod
-    def _unescape(s: str) -> str:
-        # Minimal JSON string unescape — \", \\, \n, \t, \/.
-        return (s.replace(r'\"', '"')
-                 .replace(r'\\', '\\')
-                 .replace(r'\n', ' ')
-                 .replace(r'\t', ' ')
-                 .replace(r'\/', '/'))
+        self._inner.feed(chunk)
 
 
 def run_transcript_stage(
