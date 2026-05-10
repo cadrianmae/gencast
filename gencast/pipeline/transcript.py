@@ -132,28 +132,56 @@ def run_transcript_stage(
         messages = build_cached_messages(
             provider=transcript_provider, prefix=prefix, suffix=suffix,
         )
-        on_chunk: Callable[[str], None] | None = None
-        if reporter is not None:
-            reporter.stream_open(
-                title=f"transcript segment {seg_index + 1}/{len(outline.segments)}",
-                mode="rolling",
-                max_lines=5,
+        # Retry the segment on JSON parse failure — LLMs occasionally truncate
+        # mid-string or emit malformed JSON even with response_format=json_object.
+        # Each attempt is a fresh API call (not cheap), so cap at 3 total tries.
+        last_raw = ""
+        last_err: Exception | None = None
+        data = None
+        response = None
+        for attempt in range(3):
+            on_chunk: Callable[[str], None] | None = None
+            if reporter is not None:
+                reporter.stream_open(
+                    title=(f"transcript segment {seg_index + 1}/{len(outline.segments)}"
+                           + (f" (retry {attempt})" if attempt else "")),
+                    mode="rolling",
+                    max_lines=5,
+                )
+                on_chunk = _TurnStreamFilter(reporter.stream_chunk).feed
+            response = chat_completion(
+                provider=transcript_provider,
+                model=transcript_model,
+                messages=messages,
+                response_format={"type": "json_object"},
+                max_tokens=12000,
+                cost_meter=cost_meter,
+                stage="transcript",
+                on_chunk=on_chunk,
             )
-            on_chunk = _TurnStreamFilter(reporter.stream_chunk).feed
-        response = chat_completion(
-            provider=transcript_provider,
-            model=transcript_model,
-            messages=messages,
-            response_format={"type": "json_object"},
-            max_tokens=5000,
-            cost_meter=cost_meter,
-            stage="transcript",
-            on_chunk=on_chunk,
-        )
-        if reporter is not None:
-            reporter.stream_close()
+            if reporter is not None:
+                reporter.stream_close()
 
-        if reporter is not None:
+            last_raw = _strip_code_fence(response.content)
+            try:
+                data = json.loads(last_raw)
+                break
+            except json.JSONDecodeError as e:
+                last_err = e
+                if reporter is not None:
+                    reporter.warn(
+                        f"Transcript segment {seg_index + 1} attempt {attempt + 1} "
+                        f"returned malformed JSON ({e}); retrying…"
+                    )
+                continue
+
+        if data is None:
+            raise ValueError(
+                f"Transcript segment {seg_index + 1} returned non-JSON after 3 attempts: "
+                f"{last_err}. Raw (last attempt, first 300 chars): {last_raw[:300]!r}"
+            ) from last_err
+
+        if reporter is not None and response is not None:
             try:
                 tokens_in = int(response.tokens_in)
                 cache_reads_in = int(response.cache_reads_in)
@@ -168,15 +196,6 @@ def run_transcript_stage(
                 f"cache read {cache_pct:.0f}% ({cache_reads_in} of {tokens_in} tok)"
             )
             reporter.stage_advance(1)
-
-        raw = _strip_code_fence(response.content)
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError as e:
-            raise ValueError(
-                f"Transcript segment {seg_index} returned non-JSON: {e}. "
-                f"Raw: {raw[:300]!r}"
-            ) from e
 
         seg_turns_raw = data.get("turns")
         if not isinstance(seg_turns_raw, list) or not seg_turns_raw:

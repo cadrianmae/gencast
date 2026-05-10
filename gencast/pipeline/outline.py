@@ -104,7 +104,7 @@ def run_outline_stage(
         model=outline_model,
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
-        max_tokens=3000,
+        max_tokens=6000,
         cost_meter=cost_meter,
         stage="outline",
         on_chunk=on_chunk,
