@@ -9,7 +9,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"$CLAUDE_TOOL_INPUT_file_path\"; [ -z \"$f\" ] && f=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; case \"$f\" in *.py) ./venv/bin/ruff format \"$f\" 2>/dev/null || true ;; esac"
+            "command": "bash .claude/scripts/post-edit-ruff-format.sh"
           }
         ]
       }
@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"$CLAUDE_TOOL_INPUT_file_path\"; [ -z \"$f\" ] && f=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; case \"$f\" in *.claude-plugin/plugin.json) c=\"$CLAUDE_TOOL_INPUT_new_string\"; [ -z \"$c\" ] && c=\"$CLAUDE_TOOL_INPUT_content\"; if echo \"$c\" | grep -qE '\"author\"[[:space:]]*:[[:space:]]*\"'; then echo 'BLOCKED: plugin.json author must be an object {name, email}, not a string. Claude Code silently fails the manifest schema check on the string form.' >&2; exit 2; fi ;; esac"
+            "command": "bash .claude/scripts/pre-edit-plugin-author-guard.sh"
           }
         ]
       }
