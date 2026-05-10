@@ -11,7 +11,7 @@ Review a gencast `transcript.json` for quality issues — awkward phrasings, fac
 
 - A `transcript.json` file produced by `gencast generate`. Located at `<output_dir>/<notebook_name>.transcript.json`.
 - Optionally, the original source files the notebook was built from (for fact-checking).
-- `gencast>=1.2.0` available — version check: !`gencast --version 2>/dev/null || echo "MISSING"`
+- `gencast>=1.2.0` available — version check: !`gencast --version 2>/dev/null | python3 -c "import sys,re; v=sys.stdin.read().strip(); m=re.search(r'(\d+)\.(\d+)', v); sys.exit(1) if not v else print(v if m and (int(m[1]),int(m[2]))>=(1,2) else f'TOO OLD: need gencast>=1.2.0, found {v} — run: pipx upgrade gencast')" 2>/dev/null || echo "MISSING — install with: pipx install gencast"`
 
 ## Workflow
 

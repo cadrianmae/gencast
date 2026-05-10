@@ -15,7 +15,7 @@ The rate table below is injected at skill-load time:
 gencast estimate --rates-only --json 2>/dev/null | jq -r 'to_entries[] | "- **\(.key)**: $\(.value.input_per_1k * 1)/1k in, $\(.value.output_per_1k * 1)/1k out"' || echo "(gencast not installed or --rates-only failed)"
 ```
 
-Version check: !`gencast --version 2>/dev/null || echo "MISSING"`
+Version check (need `gencast>=1.2.0`): !`gencast --version 2>/dev/null | python3 -c "import sys,re; v=sys.stdin.read().strip(); m=re.search(r'(\d+)\.(\d+)', v); sys.exit(1) if not v else print(v if m and (int(m[1]),int(m[2]))>=(1,2) else f'TOO OLD: need gencast>=1.2.0, found {v} — run: pipx upgrade gencast')" 2>/dev/null || echo "MISSING — install with: pipx install gencast"`
 
 ## Prerequisites
 
