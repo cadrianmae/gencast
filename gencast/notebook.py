@@ -18,6 +18,7 @@ class NotebookOutput(BaseModel):
     dir: Path = Path("./out")
     basename: str | None = None
     formats: list[OutputFormat] = Field(default_factory=lambda: ["m4a"])
+    overwrite: bool = False  # if False (default), skip generation when outputs already exist
 
 
 class NotebookOverrides(BaseModel):

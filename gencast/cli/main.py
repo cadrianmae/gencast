@@ -166,8 +166,11 @@ def init(minimal: bool, copy_from: Path | None, output_path: Path) -> None:
 
 @cli.command("generate")
 @click.argument("notebook_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--overwrite", "-O", is_flag=True,
+              help="Regenerate even if outputs already exist on disk. "
+                   "Default skips with an exit code 0 + friendly message.")
 @click.pass_context
-def generate(ctx: click.Context, notebook_path: Path) -> None:
+def generate(ctx: click.Context, notebook_path: Path, overwrite: bool) -> None:
     """Run the full pipeline: extract → outline → transcript → audio → package."""
     nb = load_notebook(notebook_path)
 
@@ -180,6 +183,34 @@ def generate(ctx: click.Context, notebook_path: Path) -> None:
         str((notebook_path.parent / s).resolve()) if not Path(s).is_absolute() else s
         for s in nb.sources
     ]
+
+    # CLI flag wins over notebook setting; notebook setting wins over default (False).
+    if overwrite:
+        nb.output.overwrite = True
+
+    # Pre-pipeline guard: if the primary output already exists and overwrite
+    # is off, skip cleanly. Saves money + time on the common "I already
+    # generated this; just opening it again" mistake.
+    if not nb.output.overwrite:
+        from gencast.notebook import resolve_notebook
+        basename = resolve_notebook(nb).basename
+        existing = []
+        for fmt_ext in ("m4a", "mp3"):
+            p = nb.output.dir / f"{basename}.{fmt_ext}"
+            if p.exists():
+                existing.append(p)
+        if existing:
+            click.secho(
+                f"Outputs already exist for '{nb.title}' — skipping regeneration:",
+                fg="yellow",
+            )
+            for p in existing:
+                click.echo(f"  {p}")
+            click.echo(
+                "\nRe-run with --overwrite (-O) to regenerate from scratch, "
+                "or delete the existing files first."
+            )
+            return
 
     reporter = ctx.obj["reporter"]
     state = run_pipeline(nb, reporter=reporter)
