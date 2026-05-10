@@ -2,7 +2,10 @@
   "name": "gencast",
   "version": "1.2.0",
   "description": "Conversational interface to gencast — generate, review, and price NotebookLM-style podcasts from documents",
-  "author": "cadrianmae",
+  "author": {
+    "name": "Mae",
+    "email": "45900436+cadrianmae@users.noreply.github.com"
+  },
   "homepage": "https://github.com/cadrianmae/gencast",
   "repository": "https://github.com/cadrianmae/gencast",
   "license": "MIT",
