@@ -1,0 +1,170 @@
+<h2>F: Listener-as-a-seat — A+C+D mix</h2>
+<p class="subtitle">Listener occupies one of N+1 seats around a round table. Speakers at the other seats. Math derived; never behind.</p>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    margin: 16px 0;
+  }
+  .case {
+    background: #ffffff;
+    color: #1a1a1a;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .case h3 { margin: 0 0 4px; font-size: 1.05em; color: #1a1a1a; }
+  .case .az {
+    font-family: monospace;
+    font-size: 0.92em;
+    color: #2d3748;
+    background: #f0f4f8;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .case svg {
+    display: block;
+    width: 100%;
+    height: 240px;
+    margin-top: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+  }
+  .listener-circle { fill: #ff8c42; stroke: #c25b1d; stroke-width: 1.5; }
+  .speaker-circle { fill: #4a90e2; stroke: #1f5da3; stroke-width: 1.5; }
+  .head-arrow { fill: none; stroke: #c25b1d; stroke-width: 2; }
+  .table-circle { fill: none; stroke: #888; stroke-width: 1; stroke-dasharray: 3, 3; }
+  .label { font-family: -apple-system, sans-serif; font-size: 11px; fill: #1a1a1a; font-weight: 500; }
+  .az-line { stroke: #4a90e2; stroke-width: 0.6; stroke-dasharray: 2, 2; }
+  .summary {
+    background: #f0f7ff;
+    color: #1a1a1a;
+    border-left: 4px solid #4a90e2;
+    padding: 14px 16px;
+    border-radius: 6px;
+    margin-top: 16px;
+    font-size: 0.92em;
+    line-height: 1.55;
+  }
+  .summary strong { color: #0d2540; }
+  .summary code {
+    background: #ffffff;
+    color: #1a1a1a;
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid #c9d8e8;
+  }
+</style>
+
+<div class="grid">
+
+  <div class="case">
+    <h3>N=1 (solo guest)</h3>
+    <div class="az">azimuths: 0°</div>
+    <svg viewBox="-110 -110 220 220" preserveAspectRatio="xMidYMid meet">
+      <circle cx="0" cy="0" r="80" class="table-circle" />
+      <circle cx="0" cy="80" r="9" class="listener-circle" />
+      <line x1="0" y1="80" x2="0" y2="55" class="head-arrow" marker-end="url(#aN1v2)" />
+      <defs><marker id="aN1v2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c25b1d"/></marker></defs>
+      <circle cx="0" cy="-80" r="7" class="speaker-circle" />
+      <line x1="0" y1="80" x2="0" y2="-80" class="az-line" />
+      <text class="label" x="6" y="-85">Speaker 1 (0°)</text>
+    </svg>
+  </div>
+
+  <div class="case">
+    <h3>N=2 (duo)</h3>
+    <div class="az">azimuths: -30°, +30°</div>
+    <svg viewBox="-110 -110 220 220" preserveAspectRatio="xMidYMid meet">
+      <circle cx="0" cy="0" r="80" class="table-circle" />
+      <circle cx="0" cy="80" r="9" class="listener-circle" />
+      <line x1="0" y1="80" x2="0" y2="55" class="head-arrow" marker-end="url(#aN2v2)" />
+      <defs><marker id="aN2v2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c25b1d"/></marker></defs>
+      <circle cx="69.3" cy="-40" r="7" class="speaker-circle" />
+      <line x1="0" y1="80" x2="69.3" y2="-40" class="az-line" />
+      <text class="label" x="74" y="-44">+30°</text>
+      <circle cx="-69.3" cy="-40" r="7" class="speaker-circle" />
+      <line x1="0" y1="80" x2="-69.3" y2="-40" class="az-line" />
+      <text class="label" x="-94" y="-44">-30°</text>
+    </svg>
+  </div>
+
+  <div class="case">
+    <h3>N=3 (panel)</h3>
+    <div class="az">azimuths: -45°, 0°, +45°</div>
+    <svg viewBox="-110 -110 220 220" preserveAspectRatio="xMidYMid meet">
+      <circle cx="0" cy="0" r="80" class="table-circle" />
+      <circle cx="0" cy="80" r="9" class="listener-circle" />
+      <line x1="0" y1="80" x2="0" y2="55" class="head-arrow" marker-end="url(#aN3v2)" />
+      <defs><marker id="aN3v2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c25b1d"/></marker></defs>
+      <circle cx="80" cy="0" r="7" class="speaker-circle" />
+      <line x1="0" y1="80" x2="80" y2="0" class="az-line" />
+      <text class="label" x="86" y="4">+45°</text>
+      <circle cx="0" cy="-80" r="7" class="speaker-circle" />
+      <line x1="0" y1="80" x2="0" y2="-80" class="az-line" />
+      <text class="label" x="6" y="-85">0°</text>
+      <circle cx="-80" cy="0" r="7" class="speaker-circle" />
+      <line x1="0" y1="80" x2="-80" y2="0" class="az-line" />
+      <text class="label" x="-104" y="4">-45°</text>
+    </svg>
+  </div>
+
+  <div class="case">
+    <h3>N=4 (full panel)</h3>
+    <div class="az">azimuths: -54°, -18°, +18°, +54°</div>
+    <svg viewBox="-110 -110 220 220" preserveAspectRatio="xMidYMid meet">
+      <circle cx="0" cy="0" r="80" class="table-circle" />
+      <circle cx="0" cy="80" r="9" class="listener-circle" />
+      <line x1="0" y1="80" x2="0" y2="55" class="head-arrow" marker-end="url(#aN4v2)" />
+      <defs><marker id="aN4v2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c25b1d"/></marker></defs>
+      <circle cx="76.1" cy="24.7" r="7" class="speaker-circle" />
+      <line x1="0" y1="80" x2="76.1" y2="24.7" class="az-line" />
+      <text class="label" x="82" y="28">+54°</text>
+      <circle cx="47" cy="-64.7" r="7" class="speaker-circle" />
+      <line x1="0" y1="80" x2="47" y2="-64.7" class="az-line" />
+      <text class="label" x="53" y="-69">+18°</text>
+      <circle cx="-47" cy="-64.7" r="7" class="speaker-circle" />
+      <line x1="0" y1="80" x2="-47" y2="-64.7" class="az-line" />
+      <text class="label" x="-66" y="-69">-18°</text>
+      <circle cx="-76.1" cy="24.7" r="7" class="speaker-circle" />
+      <line x1="0" y1="80" x2="-76.1" y2="24.7" class="az-line" />
+      <text class="label" x="-100" y="28">-54°</text>
+    </svg>
+  </div>
+
+</div>
+
+<div class="summary">
+  <strong>The math (one line)</strong>: For listener at table position 270° (south), place N speakers at table-angles
+  <code>270° + (360°/(N+1))·k</code> for k=1..N. Each speaker's azimuth from listener is then
+  <code>atan2(x_table, y_table + R)</code>.
+  All speakers end up in the front half — geometric guarantee (every round-table seat has positive forward-distance from any other seat).
+  <br><br>
+  <strong>Why this is the A+C+D mix</strong>:
+  <br>
+  • <strong>A</strong> (front-arc only): inherited — no speaker is ever behind, by geometry.
+  <br>
+  • <strong>C</strong> (literal table): inherited — angles derive from real seat positions, not arbitrary.
+  <br>
+  • <strong>D</strong> (spreads wide as N grows): inherited — N=2 ±30°, N=4 ±54°, naturally wider with more participants.
+</div>
+
+<div class="options">
+  <div class="option" data-choice="confirm" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>This is the geometry — render the audio harness</h3>
+      <p>Extend spatial_test.py with N=2/N=3/N=4 dialogues at these computed azimuths, full HRTF + small-room reverb pipeline.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="adjust" onclick="toggleSelect(this)">
+    <div class="letter">±</div>
+    <div class="content">
+      <h3>Geometry close, but adjust something</h3>
+      <p>e.g. cap maximum azimuth, or use a different "seat distance ratio" so spreads change.</p>
+    </div>
+  </div>
+</div>

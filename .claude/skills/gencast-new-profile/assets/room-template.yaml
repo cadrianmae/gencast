@@ -1,0 +1,29 @@
+name: REPLACE_ME
+description: ONE_LINE_DESCRIPTION_OF_ACOUSTIC_FEEL
+
+# Spatial audio — angular spread between speakers (degrees).
+arc_deg: 120.0
+
+# Inter-aural time difference cap (ms). Higher = wider stereo image.
+itd_max_ms: 0.6
+
+# Random per-segment positional jitter (degrees). Adds liveliness.
+jitter_deg: 1.5
+
+# Schroeder reverb parameters
+reverb_t60_s: 0.30        # decay time in seconds (0.1=dry, 1.0+=cathedral)
+reverb_wet: 0.05          # wet/dry mix (0.0=dry, 1.0=all-wet)
+reverb_lpf_hz: 2000.0     # low-pass cutoff on reverb tail
+reverb_damping: 0.55      # high-frequency damping (0=bright, 1=very damped)
+predelay_ms: 20.0         # gap before reverb starts
+
+# Source positioning
+table_radius_m: 0.85      # implied radius of the conversation circle
+
+# Ambience (background noise floor)
+ambience_db: -70.0        # quieter = -80, more present = -60
+ambience_lpf_hz: 1500.0
+ambience_fan_rumble_db: 4.0  # subtle low-freq rumble
+
+# Final loudness target
+target_dbfs: -1.0

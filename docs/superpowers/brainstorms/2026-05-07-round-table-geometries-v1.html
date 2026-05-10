@@ -1,0 +1,151 @@
+<h2>Round-table speaker positioning — which geometry?</h2>
+<p class="subtitle">N=4 speakers shown for each. The listener is the orange dot, looking up the page. Click an option to choose.</p>
+
+<style>
+  .geo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 16px 0 24px;
+  }
+  @media (max-width: 1100px) {
+    .geo-grid { grid-template-columns: 1fr; }
+  }
+  .geo-card {
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    background: white;
+    padding: 16px 14px 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .geo-card:hover { border-color: #5ca264; transform: translateY(-2px); }
+  .geo-card.selected { border-color: #5ca264; background: #e7f5e8; }
+  .geo-letter {
+    display: inline-block;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: #5ca264; color: white;
+    font-weight: bold;
+    text-align: center;
+    line-height: 28px;
+    margin-right: 8px;
+  }
+  .geo-name { font-weight: 600; font-size: 1.05em; }
+  .geo-svg {
+    display: block;
+    width: 100%;
+    height: 220px;
+    margin: 12px 0 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+  }
+  .geo-desc { font-size: 0.88em; color: #555; line-height: 1.45; }
+  .geo-pros-cons {
+    font-size: 0.82em;
+    margin-top: 10px;
+    color: #444;
+  }
+  .geo-pros-cons strong { color: #2d5a37; }
+  .listener-circle { fill: #ff8c42; stroke: #c25b1d; stroke-width: 1.5; }
+  .speaker-circle { fill: #4a90e2; stroke: #1f5da3; stroke-width: 1.5; }
+  .speaker-back { fill: #e2934a; stroke: #a35a1c; stroke-width: 1.5; }
+  .head-arrow { fill: none; stroke: #c25b1d; stroke-width: 2; }
+  .table-circle { fill: none; stroke: #aaa; stroke-width: 1; stroke-dasharray: 3, 3; }
+  .label { font-family: -apple-system, sans-serif; font-size: 11px; fill: #555; }
+</style>
+
+<div class="geo-grid">
+
+  <!-- A: Front arc -->
+  <div class="geo-card option" data-choice="a" onclick="toggleSelect(this)">
+    <div><span class="geo-letter">A</span><span class="geo-name">Front arc (industry standard)</span></div>
+    <svg class="geo-svg" viewBox="-110 -110 220 220" preserveAspectRatio="xMidYMid meet">
+      <!-- Listener at bottom looking up (-y direction) -->
+      <circle cx="0" cy="80" r="9" class="listener-circle" />
+      <line x1="0" y1="80" x2="0" y2="55" class="head-arrow" marker-end="url(#arrA)" />
+      <defs><marker id="arrA" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c25b1d"/></marker></defs>
+      <!-- 4 speakers on front arc ±60°, evenly: -60, -20, +20, +60 -->
+      <circle cx="-60.6" cy="-30" r="7" class="speaker-circle" /><text class="label" x="-78" y="-35">-60°</text>
+      <circle cx="-23.9" cy="-65.5" r="7" class="speaker-circle" /><text class="label" x="-44" y="-72">-20°</text>
+      <circle cx="23.9" cy="-65.5" r="7" class="speaker-circle" /><text class="label" x="30" y="-72">+20°</text>
+      <circle cx="60.6" cy="-30" r="7" class="speaker-circle" /><text class="label" x="68" y="-35">+60°</text>
+    </svg>
+    <div class="geo-desc">All speakers in a front arc (typically ±60°). Listener never has voices behind them.</div>
+    <div class="geo-pros-cons">
+      <strong>Pros</strong>: never disorienting, mixes always translate to any headphone/speaker, matches how most podcast/film audio is mixed.<br>
+      <strong>Cons</strong>: doesn't feel like an actual table — more like a stage where speakers face the audience.
+    </div>
+  </div>
+
+  <!-- B: True round table, listener at center -->
+  <div class="geo-card option" data-choice="b" onclick="toggleSelect(this)">
+    <div><span class="geo-letter">B</span><span class="geo-name">Listener at center, speakers around</span></div>
+    <svg class="geo-svg" viewBox="-110 -110 220 220" preserveAspectRatio="xMidYMid meet">
+      <circle cx="0" cy="0" r="80" class="table-circle" />
+      <!-- Listener at table center -->
+      <circle cx="0" cy="0" r="9" class="listener-circle" />
+      <line x1="0" y1="0" x2="0" y2="-25" class="head-arrow" marker-end="url(#arrB)" />
+      <defs><marker id="arrB" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c25b1d"/></marker></defs>
+      <!-- 4 speakers evenly on a circle: 0, 90, 180, 270 -->
+      <circle cx="0" cy="-80" r="7" class="speaker-circle" /><text class="label" x="6" y="-85">0° (front)</text>
+      <circle cx="80" cy="0" r="7" class="speaker-circle" /><text class="label" x="55" y="15">+90°</text>
+      <circle cx="0" cy="80" r="7" class="speaker-back" /><text class="label" x="6" y="98">180° (behind)</text>
+      <circle cx="-80" cy="0" r="7" class="speaker-circle" /><text class="label" x="-90" y="15">-90°</text>
+    </svg>
+    <div class="geo-desc">Listener sits at the table's center; speakers radiate around them at full 360°.</div>
+    <div class="geo-pros-cons">
+      <strong>Pros</strong>: real round-table feeling, fully immersive.<br>
+      <strong>Cons</strong>: speakers behind listener (orange dots) confuse direction on bad headphones, weak HRTFs muddle front/back.
+    </div>
+  </div>
+
+  <!-- C: True round table, listener as a seat -->
+  <div class="geo-card option" data-choice="c" onclick="toggleSelect(this)">
+    <div><span class="geo-letter">C</span><span class="geo-name">Listener as a seat at the table</span></div>
+    <svg class="geo-svg" viewBox="-110 -110 220 220" preserveAspectRatio="xMidYMid meet">
+      <circle cx="0" cy="0" r="60" class="table-circle" />
+      <!-- Listener at south, facing north (toward center, then beyond to opposite seat) -->
+      <circle cx="0" cy="60" r="9" class="listener-circle" />
+      <line x1="0" y1="60" x2="0" y2="35" class="head-arrow" marker-end="url(#arrC)" />
+      <defs><marker id="arrC" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c25b1d"/></marker></defs>
+      <!-- 5 seats total (listener + 4 speakers), spaced evenly: angles 0, 72, 144, 216, 288 -->
+      <!-- Listener at 90° (south = bottom). Speakers at 90+72, 90+144, 90+216, 90+288 around the circle -->
+      <!-- Compute (cos sin) for: 162° → (-57, -19), 234° → (-35, 49), 306° → (35, 49), 18° → (57, -19), all *60 -->
+      <circle cx="-57" cy="-19" r="7" class="speaker-circle" /><text class="label" x="-72" y="-22">~-43°</text>
+      <circle cx="-35" cy="49" r="7" class="speaker-back" /><text class="label" x="-58" y="66">behind-L</text>
+      <circle cx="35" cy="49" r="7" class="speaker-back" /><text class="label" x="42" y="66">behind-R</text>
+      <circle cx="57" cy="-19" r="7" class="speaker-circle" /><text class="label" x="64" y="-22">~+43°</text>
+    </svg>
+    <div class="geo-desc">Listener is one seat at the table; speakers occupy the other N seats. Forward-table seats face the listener; same-side seats are at ±90°+.</div>
+    <div class="geo-pros-cons">
+      <strong>Pros</strong>: literally a round table; feels like being a participant.<br>
+      <strong>Cons</strong>: with even spacing, some speakers end up at your sides or slightly behind. Same disorientation risk as B with weak HRTFs. Geometry math is non-trivial.
+    </div>
+  </div>
+
+</div>
+
+<h3>Hybrid worth considering</h3>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Front-half-of-round-table (recommended-leaning)</h3>
+      <p>Like A, but spread the speakers across a wider front arc (e.g. ±90° = full front semicircle) so it
+      feels more "around me" without putting anyone behind. N=2: ±45°, N=3: ±60°, ±0°, N=4: ±75°, ±25°.</p>
+      <p style="margin-top: 8px"><strong>Pros</strong>: feels more table-like than A; never behind; works with any HRTF dataset; predictable.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="e" onclick="toggleSelect(this)">
+    <div class="letter">E</div>
+    <div class="content">
+      <h3>Configurable arc width per profile</h3>
+      <p>Profile YAML carries <code>arc_degrees: 120</code> (defaults to 120° = ±60°). Users who want immersion
+      can set <code>arc_degrees: 270</code> for near-full-circle. <code>arc_degrees: 360</code> = true round-table B.</p>
+      <p style="margin-top: 8px"><strong>Pros</strong>: ships A as default, but B is one config knob away.</p>
+    </div>
+  </div>
+</div>

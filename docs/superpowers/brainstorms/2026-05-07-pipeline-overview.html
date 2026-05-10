@@ -1,0 +1,220 @@
+<h2>gencast v1 — Pipeline architecture</h2>
+<p class="subtitle">Old (single-shot) vs New (per-segment + caching). Click anywhere to advance.</p>
+
+<style>
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 24px;
+  }
+  .stage {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-family: -apple-system, sans-serif;
+  }
+  .stage.new {
+    background: #e7f5e8;
+    border-color: #5ca264;
+  }
+  .stage.changed {
+    background: #fff7d6;
+    border-color: #c9a227;
+  }
+  .stage.removed {
+    text-decoration: line-through;
+    opacity: 0.45;
+    background: #fbe7e7;
+  }
+  .stage-num {
+    font-weight: bold;
+    color: #666;
+    min-width: 24px;
+  }
+  .stage-name {
+    font-weight: 600;
+    min-width: 220px;
+  }
+  .stage-detail {
+    color: #555;
+    font-size: 0.9em;
+  }
+  .arrow {
+    text-align: center;
+    color: #999;
+    font-size: 1.2em;
+    margin: -4px 0;
+  }
+  .legend {
+    display: flex;
+    gap: 16px;
+    font-size: 0.85em;
+    margin: 12px 0 20px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+  }
+  .pipelines-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .pipeline-label {
+    font-weight: bold;
+    font-size: 0.95em;
+    text-transform: uppercase;
+    color: #444;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+  @media (max-width: 900px) {
+    .pipelines-row { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="legend">
+  <div class="legend-item"><span class="legend-swatch" style="background:white;border-color:#ddd"></span> Unchanged</div>
+  <div class="legend-item"><span class="legend-swatch" style="background:#fff7d6;border-color:#c9a227"></span> Reshaped</div>
+  <div class="legend-item"><span class="legend-swatch" style="background:#e7f5e8;border-color:#5ca264"></span> New in v1</div>
+  <div class="legend-item"><span class="legend-swatch" style="background:#fbe7e7;border-color:#999"></span> Removed</div>
+</div>
+
+<div class="pipelines-row">
+  <div>
+    <div class="pipeline-label">Current (v0.6.x) — single-shot</div>
+    <div class="pipeline">
+      <div class="stage">
+        <span class="stage-num">1</span>
+        <span class="stage-name">extract_text</span>
+        <span class="stage-detail">md / pdf / txt → str</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage">
+        <span class="stage-num">2</span>
+        <span class="stage-name">generate_plan (opt)</span>
+        <span class="stage-detail">1 LLM call</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage removed">
+        <span class="stage-num">3</span>
+        <span class="stage-name">generate_dialogue</span>
+        <span class="stage-detail">1 LLM call → full HOST1/HOST2 dialogue</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage">
+        <span class="stage-num">4</span>
+        <span class="stage-name">generate_audio</span>
+        <span class="stage-detail">OpenAI tts-1-hd, sequential</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage">
+        <span class="stage-num">5</span>
+        <span class="stage-name">whisper SRT</span>
+        <span class="stage-detail">post-hoc transcription</span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="pipeline-label">v1.0 — per-segment + caching</div>
+    <div class="pipeline">
+      <div class="stage changed">
+        <span class="stage-num">1</span>
+        <span class="stage-name">load_notebook</span>
+        <span class="stage-detail">YAML → Notebook + resolved profiles</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage changed">
+        <span class="stage-num">2</span>
+        <span class="stage-name">extract_sources</span>
+        <span class="stage-detail">md (v1) / pdf,url,stdin (v1.x) → str</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage new">
+        <span class="stage-num">3</span>
+        <span class="stage-name">token_preflight</span>
+        <span class="stage-detail">count vs model max — abort or compress</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage new">
+        <span class="stage-num">4</span>
+        <span class="stage-name">map_reduce_summarize (cond.)</span>
+        <span class="stage-detail">if oversized: chunk → summarize → recurse</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage new">
+        <span class="stage-num">5</span>
+        <span class="stage-name">generate_outline</span>
+        <span class="stage-detail">1 LLM call → N segments (cheap model OK, e.g. Haiku)</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage new">
+        <span class="stage-num">6</span>
+        <span class="stage-name">generate_transcript_segments</span>
+        <span class="stage-detail">N LLM calls, one per segment, with prompt caching (Sonnet)</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage changed">
+        <span class="stage-num">7</span>
+        <span class="stage-name">generate_audio</span>
+        <span class="stage-detail">pluggable TTS (Speaches/OpenAI), asyncio concurrent batches of 5</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage changed">
+        <span class="stage-num">8</span>
+        <span class="stage-name">apply_spatial_audio</span>
+        <span class="stage-detail">ITD + panning (carries over verbatim)</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage changed">
+        <span class="stage-num">9</span>
+        <span class="stage-name">combine_audio + emit_clip_timings</span>
+        <span class="stage-detail">concat + native timing → SRT (no Whisper needed)</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="stage new">
+        <span class="stage-num">10</span>
+        <span class="stage-name">cost_meter.report</span>
+        <span class="stage-detail">per-stage tokens + $ → stderr</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top: 28px">What unlocks the long-podcast capability</h3>
+
+<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 12px;">
+  <div style="padding: 12px 16px; background: #fff7d6; border-radius: 6px; border-left: 4px solid #c9a227;">
+    <div style="font-weight: 600; margin-bottom: 4px;">Stage 6: per-segment loop</div>
+    <div style="font-size: 0.9em; color: #444;">Each segment gets its own 5K-token output budget. 10 segments = ~50K total dialogue tokens = 30-60 min audio. Removes the structural ~20-min ceiling.</div>
+  </div>
+  <div style="padding: 12px 16px; background: #e7f5e8; border-radius: 6px; border-left: 4px solid #5ca264;">
+    <div style="font-weight: 600; margin-bottom: 4px;">Stage 4: map-reduce compression</div>
+    <div style="font-size: 0.9em; color: #444;">For 100K+ source tokens: chunk → summarize each → recurse until fits. Frees output budget for the per-segment dialogue calls.</div>
+  </div>
+  <div style="padding: 12px 16px; background: #e7f5e8; border-radius: 6px; border-left: 4px solid #5ca264;">
+    <div style="font-weight: 600; margin-bottom: 4px;">Anthropic prompt caching</div>
+    <div style="font-size: 0.9em; color: #444;">Per-segment shape lets the constant prefix (briefing + content + outline) be cached. ~70% input-token savings across segments 2-N.</div>
+  </div>
+  <div style="padding: 12px 16px; background: #e7f5e8; border-radius: 6px; border-left: 4px solid #5ca264;">
+    <div style="font-weight: 600; margin-bottom: 4px;">Stage 9: native timing</div>
+    <div style="font-size: 0.9em; color: #444;">Audio combination knows each clip's start/end ms — emits SRT directly without a Whisper post-pass. Saves a buck per podcast.</div>
+  </div>
+</div>

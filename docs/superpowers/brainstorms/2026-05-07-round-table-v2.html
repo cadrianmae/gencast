@@ -1,0 +1,149 @@
+<h2>Round-table speaker positioning — pick a geometry</h2>
+<p class="subtitle">N=4 speakers shown for each. Listener (orange) faces up the page. Click to choose.</p>
+
+<style>
+  .geo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    margin: 16px 0;
+  }
+  .geo-card {
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    background: white;
+    padding: 14px 14px 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    flex-direction: column;
+  }
+  .geo-card:hover { border-color: #5ca264; transform: translateY(-2px); }
+  .geo-card.selected { border-color: #5ca264; background: #e7f5e8; }
+  .geo-letter {
+    display: inline-block;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: #5ca264; color: white;
+    font-weight: bold;
+    text-align: center;
+    line-height: 28px;
+    margin-right: 8px;
+  }
+  .geo-name { font-weight: 600; font-size: 1em; }
+  .geo-svg {
+    display: block;
+    width: 100%;
+    height: 200px;
+    margin: 10px 0 6px;
+    background: #f8f9fa;
+    border-radius: 6px;
+  }
+  .geo-desc { font-size: 0.86em; color: #555; line-height: 1.45; }
+  .geo-meta {
+    font-size: 0.78em;
+    margin-top: auto;
+    padding-top: 10px;
+    color: #555;
+  }
+  .listener-circle { fill: #ff8c42; stroke: #c25b1d; stroke-width: 1.5; }
+  .speaker-circle { fill: #4a90e2; stroke: #1f5da3; stroke-width: 1.5; }
+  .speaker-back { fill: #e2934a; stroke: #a35a1c; stroke-width: 1.5; }
+  .head-arrow { fill: none; stroke: #c25b1d; stroke-width: 2; }
+  .table-circle { fill: none; stroke: #aaa; stroke-width: 1; stroke-dasharray: 3, 3; }
+  .label { font-family: -apple-system, sans-serif; font-size: 11px; fill: #555; }
+</style>
+
+<div class="geo-grid">
+
+  <!-- A: Front arc -->
+  <div class="geo-card option" data-choice="a" onclick="toggleSelect(this)">
+    <div><span class="geo-letter">A</span><span class="geo-name">Front arc ±60°</span></div>
+    <svg class="geo-svg" viewBox="-110 -110 220 220" preserveAspectRatio="xMidYMid meet">
+      <circle cx="0" cy="80" r="9" class="listener-circle" />
+      <line x1="0" y1="80" x2="0" y2="55" class="head-arrow" marker-end="url(#arrA)" />
+      <defs><marker id="arrA" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c25b1d"/></marker></defs>
+      <circle cx="-60.6" cy="-30" r="7" class="speaker-circle" /><text class="label" x="-78" y="-35">-60°</text>
+      <circle cx="-23.9" cy="-65.5" r="7" class="speaker-circle" /><text class="label" x="-44" y="-72">-20°</text>
+      <circle cx="23.9" cy="-65.5" r="7" class="speaker-circle" /><text class="label" x="30" y="-72">+20°</text>
+      <circle cx="60.6" cy="-30" r="7" class="speaker-circle" /><text class="label" x="68" y="-35">+60°</text>
+    </svg>
+    <div class="geo-desc">Industry standard. All speakers in a tight front arc. Never disorienting.</div>
+    <div class="geo-meta">Translates to any headphones · less "table" feel, more "stage"</div>
+  </div>
+
+  <!-- B: Listener at center, full 360 -->
+  <div class="geo-card option" data-choice="b" onclick="toggleSelect(this)">
+    <div><span class="geo-letter">B</span><span class="geo-name">Center, full 360°</span></div>
+    <svg class="geo-svg" viewBox="-110 -110 220 220" preserveAspectRatio="xMidYMid meet">
+      <circle cx="0" cy="0" r="80" class="table-circle" />
+      <circle cx="0" cy="0" r="9" class="listener-circle" />
+      <line x1="0" y1="0" x2="0" y2="-25" class="head-arrow" marker-end="url(#arrB)" />
+      <defs><marker id="arrB" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c25b1d"/></marker></defs>
+      <circle cx="0" cy="-80" r="7" class="speaker-circle" /><text class="label" x="6" y="-85">0°</text>
+      <circle cx="80" cy="0" r="7" class="speaker-circle" /><text class="label" x="55" y="15">+90°</text>
+      <circle cx="0" cy="80" r="7" class="speaker-back" /><text class="label" x="6" y="98">180° behind</text>
+      <circle cx="-80" cy="0" r="7" class="speaker-circle" /><text class="label" x="-90" y="15">-90°</text>
+    </svg>
+    <div class="geo-desc">Listener at table center. Speakers radiate full 360°, including directly behind.</div>
+    <div class="geo-meta">Most immersive · weak HRTFs muddle front/back · cheap earbuds collapse "behind" into "in head"</div>
+  </div>
+
+  <!-- C: Listener as a seat -->
+  <div class="geo-card option" data-choice="c" onclick="toggleSelect(this)">
+    <div><span class="geo-letter">C</span><span class="geo-name">Listener as a seat</span></div>
+    <svg class="geo-svg" viewBox="-110 -110 220 220" preserveAspectRatio="xMidYMid meet">
+      <circle cx="0" cy="0" r="60" class="table-circle" />
+      <circle cx="0" cy="60" r="9" class="listener-circle" />
+      <line x1="0" y1="60" x2="0" y2="35" class="head-arrow" marker-end="url(#arrC)" />
+      <defs><marker id="arrC" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c25b1d"/></marker></defs>
+      <circle cx="-57" cy="-19" r="7" class="speaker-circle" />
+      <circle cx="-35" cy="49" r="7" class="speaker-back" />
+      <circle cx="35" cy="49" r="7" class="speaker-back" />
+      <circle cx="57" cy="-19" r="7" class="speaker-circle" />
+    </svg>
+    <div class="geo-desc">Listener occupies one of N+1 seats around an actual table. Real geometry.</div>
+    <div class="geo-meta">Most "table-like" feel · same disorientation risk as B · math is non-trivial</div>
+  </div>
+
+  <!-- D: Front semicircle (hybrid) -->
+  <div class="geo-card option" data-choice="d" onclick="toggleSelect(this)">
+    <div><span class="geo-letter">D</span><span class="geo-name">Front semicircle ±90°</span></div>
+    <svg class="geo-svg" viewBox="-110 -110 220 220" preserveAspectRatio="xMidYMid meet">
+      <circle cx="0" cy="0" r="9" class="listener-circle" />
+      <line x1="0" y1="0" x2="0" y2="-25" class="head-arrow" marker-end="url(#arrD)" />
+      <defs><marker id="arrD" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c25b1d"/></marker></defs>
+      <!-- 4 speakers spaced -75°, -25°, +25°, +75° at radius 80 -->
+      <circle cx="-77.3" cy="-20.7" r="7" class="speaker-circle" /><text class="label" x="-94" y="-25">-75°</text>
+      <circle cx="-33.8" cy="-72.5" r="7" class="speaker-circle" /><text class="label" x="-54" y="-78">-25°</text>
+      <circle cx="33.8" cy="-72.5" r="7" class="speaker-circle" /><text class="label" x="40" y="-78">+25°</text>
+      <circle cx="77.3" cy="-20.7" r="7" class="speaker-circle" /><text class="label" x="84" y="-25">+75°</text>
+    </svg>
+    <div class="geo-desc">Like A but spread wider — full front semicircle. Feels more "around me," nothing behind.</div>
+    <div class="geo-meta">Predictable, never disorienting · table-like without geometry risk · my recommended default</div>
+  </div>
+
+  <!-- E: Configurable -->
+  <div class="geo-card option" data-choice="e" onclick="toggleSelect(this)">
+    <div><span class="geo-letter">E</span><span class="geo-name">Configurable arc</span></div>
+    <svg class="geo-svg" viewBox="-110 -110 220 220" preserveAspectRatio="xMidYMid meet">
+      <circle cx="0" cy="0" r="9" class="listener-circle" />
+      <line x1="0" y1="0" x2="0" y2="-25" class="head-arrow" marker-end="url(#arrE)" />
+      <defs><marker id="arrE" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c25b1d"/></marker></defs>
+      <!-- Show 3 example arcs as overlays: 120°, 180°, 270° -->
+      <path d="M -69.3 -40 A 80 80 0 0 1 69.3 -40" fill="none" stroke="#5ca264" stroke-width="2" />
+      <text class="label" x="-30" y="-90" fill="#5ca264">arc=120°</text>
+      <path d="M -80 0 A 80 80 0 0 1 80 0" fill="none" stroke="#4a90e2" stroke-width="2" stroke-dasharray="4,3"/>
+      <text class="label" x="40" y="-5" fill="#4a90e2">arc=180°</text>
+      <path d="M -56.6 56.6 A 80 80 0 1 1 56.6 56.6" fill="none" stroke="#a35a1c" stroke-width="2" stroke-dasharray="2,4"/>
+      <text class="label" x="-30" y="78" fill="#a35a1c">arc=270°</text>
+    </svg>
+    <div class="geo-desc">Profile YAML carries <code>arc_degrees</code>; spread N speakers across it. 120/180/270/360.</div>
+    <div class="geo-meta">Ship D as default · power users dial to B with one config knob · same engine, parameterized</div>
+  </div>
+
+</div>
+
+<p style="font-size: 0.85em; color: #888; margin-top: 8px">
+  Note: option D is essentially "A with wider arc"; option E is "a profile knob that lets you pick A/B/D at runtime."
+</p>

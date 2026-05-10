@@ -1,0 +1,16 @@
+name: REPLACE_ME
+description: ONE_LINE_DESCRIPTION
+
+# Reference an existing speakers/<name>.yaml — episode profiles do not own voice config.
+speaker_profile: educational-duo
+
+default_briefing: |
+  REPLACE_ME — multi-line briefing string. Tells the LLM the conversational
+  shape, tone, and any constraints. Be concrete: name what to define, what
+  examples to work through, what to avoid.
+
+# Number of segments the transcript stage produces. 4–8 is typical.
+num_segments: 6
+
+# How long each segment runs. Options: short | medium | long.
+segment_size_default: medium
