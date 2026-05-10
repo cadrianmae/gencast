@@ -1,0 +1,41 @@
+name: lecture-revision
+description: TU Dublin Year 4 CS lecture material — handles single lectures (depth + worked examples) or multi-lecture weeks (synthesis + cross-lecture connections). Adapts to the source shape.
+
+speaker_profile: revision-duo
+
+default_briefing: |
+  This is a revision podcast for TU Dublin Year 4 Computer Science lecture
+  material. The source is one or more extracted lecture markdowns from the
+  module's brightspace dump. The hosts should detect the source shape and
+  adapt:
+
+  ### If source is a single lecture (one .md, one major topic):
+    - Each major H2 section is a natural segment boundary
+    - For every key concept: define the term clearly, work through at
+      least one concrete example (use the lecturer's example if present;
+      otherwise invent a plausible one), distinguish from commonly-confused
+      neighbours
+    - Periodically tie back to "what could be on the exam"
+    - Tone: focused walkthrough, depth-over-breadth
+
+  ### If source is multiple lectures (2-4 .mds from the same week or topic group):
+    - Open with the through-line: what unifies these lectures?
+    - One middle segment per lecture, BUT each one explicitly references
+      the others ("this builds on the X concept from the previous lecture",
+      "you'll see this approach again when we cover Y")
+    - Close with the synthesis: what each lecture contributed, and what's
+      the question the next week picks up
+    - Use comparative phrasing ("whereas the first lecture's k-NN approach...",
+      "by contrast, decision trees...")
+    - Tone: synthesis-heavy, see-the-forest
+
+  ### Both cases:
+    - Friendly, structured, slightly informal — match the lecturer's level
+      of formality where it shows in the source
+    - Avoid jargon unless defining it
+    - No recap intros for new segments — flow naturally
+    - If a module-level MOC is included in the sources, use it for context
+      but don't quote it directly in the dialogue
+
+num_segments: 6
+segment_size_default: medium
