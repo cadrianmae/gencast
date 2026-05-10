@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from litellm import completion
 
@@ -41,8 +41,14 @@ def chat_completion(
     cost_meter: CostMeter | None = None,
     stage: str | None = None,
     cache_dir: Path | None = None,
+    on_chunk: Callable[[str], None] | None = None,
 ) -> LLMResponse:
-    """One LLM call. Records cost into cost_meter[stage] if provided."""
+    """One LLM call. Records cost into cost_meter[stage] if provided.
+
+    When `on_chunk` is provided, switches to streaming mode and pumps each
+    text delta into the callback as it arrives. Cache hits emit the full
+    cached content as a single chunk so the UX is consistent.
+    """
     params = {
         "response_format": response_format,
         "max_tokens": max_tokens,
@@ -56,6 +62,8 @@ def chat_completion(
         cache = LLMDiskCache(cache_dir)
         cached = cache.get(provider=provider, model=model, messages=messages, params=params)
         if cached is not None:
+            if on_chunk is not None:
+                on_chunk(cached["content"])
             return LLMResponse(
                 content=cached["content"],
                 tokens_in=cached["tokens_in"],
@@ -80,15 +88,40 @@ def chat_completion(
     if extra:
         kwargs.update(extra)
 
-    resp = completion(**kwargs)
-
-    content = resp.choices[0].message.content or ""
-    usage = resp.usage
-    tokens_in = getattr(usage, "prompt_tokens", 0)
-    tokens_out = getattr(usage, "completion_tokens", 0)
-    cache_reads_in = getattr(usage, "cache_read_input_tokens", 0) or 0
-    cache_writes_in = getattr(usage, "cache_creation_input_tokens", 0) or 0
-    usd = (resp._hidden_params or {}).get("response_cost", 0.0) or 0.0
+    if on_chunk is not None:
+        # Streaming branch — pump deltas to the callback, accumulate into resp.
+        kwargs["stream"] = True
+        kwargs["stream_options"] = {"include_usage": True}
+        chunks: list[str] = []
+        usage = None
+        last = None
+        for piece in completion(**kwargs):
+            last = piece
+            if getattr(piece, "usage", None) is not None:
+                usage = piece.usage
+            try:
+                delta = piece.choices[0].delta.content
+            except (AttributeError, IndexError):
+                delta = None
+            if delta:
+                chunks.append(delta)
+                on_chunk(delta)
+        content = "".join(chunks)
+        resp = last
+        tokens_in = getattr(usage, "prompt_tokens", 0) if usage else 0
+        tokens_out = getattr(usage, "completion_tokens", 0) if usage else 0
+        cache_reads_in = (getattr(usage, "cache_read_input_tokens", 0) or 0) if usage else 0
+        cache_writes_in = (getattr(usage, "cache_creation_input_tokens", 0) or 0) if usage else 0
+        usd = ((resp._hidden_params or {}).get("response_cost", 0.0) or 0.0) if resp else 0.0
+    else:
+        resp = completion(**kwargs)
+        content = resp.choices[0].message.content or ""
+        usage = resp.usage
+        tokens_in = getattr(usage, "prompt_tokens", 0)
+        tokens_out = getattr(usage, "completion_tokens", 0)
+        cache_reads_in = getattr(usage, "cache_read_input_tokens", 0) or 0
+        cache_writes_in = getattr(usage, "cache_creation_input_tokens", 0) or 0
+        usd = (resp._hidden_params or {}).get("response_cost", 0.0) or 0.0
 
     if cache is not None:
         cache.put(

@@ -85,6 +85,7 @@ def run_outline_stage(
         reporter.stage_activity(
             f"[{outline_provider}/{outline_model}] generating {num_segments} segments"
         )
+        reporter.stream_open(title="outline", mode="full")
 
     prompt = render_outline_prompt(
         briefing=briefing, content=content, speakers=speakers,
@@ -98,7 +99,11 @@ def run_outline_stage(
         max_tokens=3000,
         cost_meter=cost_meter,
         stage="outline",
+        on_chunk=(reporter.stream_chunk if reporter is not None else None),
     )
+
+    if reporter is not None:
+        reporter.stream_close()
 
     raw = _strip_code_fence(response.content)
     try:

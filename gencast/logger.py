@@ -10,8 +10,8 @@ from typing import Optional
 try:
     from rich.console import Console, Group
     from rich.live import Live
-    from rich.panel import Panel
     from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
+    from rich.text import Text
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -43,6 +43,20 @@ class Reporter(ABC):
 
     @abstractmethod
     def error(self, msg: str) -> None: ...
+
+    # Streaming preview API — no-ops in non-TTY contexts.
+    def stream_open(self, title: str, mode: str = "rolling", max_lines: int = 5) -> None:
+        """Open a streaming preview window. mode='full' shows everything (for outline);
+        mode='rolling' shows the last N lines (for per-segment transcript)."""
+        pass
+
+    def stream_chunk(self, text: str) -> None:
+        """Append a chunk of streamed text to the open preview window."""
+        pass
+
+    def stream_close(self) -> None:
+        """Close the streaming preview window."""
+        pass
 
 
 class PlainReporter(Reporter):
@@ -100,7 +114,7 @@ class PlainReporter(Reporter):
 
 
 class RichReporter(Reporter):
-    """Two-band Live display: progress bar on top, current activity below."""
+    """Borderless Live display: progress bar, activity line, optional stream preview."""
 
     def __init__(self, verbosity: int = 1):
         if not RICH_AVAILABLE:
@@ -117,6 +131,13 @@ class RichReporter(Reporter):
         self._progress: Optional[Progress] = None
         self._task_id = None
         self._live: Optional[Live] = None
+        # Stream preview state
+        self._stream_title: str = ""
+        self._stream_mode: str = "rolling"  # "full" | "rolling"
+        self._stream_max_lines: int = 5
+        self._stream_buffer: str = ""  # full-mode accumulator
+        self._stream_lines: list[str] = []  # rolling-mode buffer
+        self._stream_active: bool = False
 
     def _ensure_live(self) -> None:
         if self._live is not None:
@@ -128,19 +149,30 @@ class RichReporter(Reporter):
             TimeElapsedColumn(),
             console=self._console,
         )
-        self._live = Live(self._render(), console=self._console, refresh_per_second=4)
+        self._live = Live(self._render(), console=self._console, refresh_per_second=10)
         self._live.start()
 
-    def _render(self) -> Panel:
+    def _render(self):
+        # Borderless: just a Group of renderables, no Panel wrapping.
         if self._progress is None:
-            return Panel("starting...", border_style="cyan")
-        # Group composes renderables so the Progress bar actually renders;
-        # f-stringing it would call __repr__ and print '<rich.progress.Progress object at 0x...>'.
-        return Panel(
-            Group(self._progress, "", f"  {self._latest_activity}"),
-            title="gencast",
-            border_style="cyan",
-        )
+            return Text("starting...", style="dim")
+        parts: list = [self._progress]
+        if self._latest_activity:
+            parts.append(Text(f"  {self._latest_activity}", style="dim"))
+        if self._stream_active:
+            parts.append(Text(f"  {self._stream_title}", style="bold dim"))
+            parts.append(Text(self._stream_render(), style="dim"))
+        return Group(*parts)
+
+    def _stream_render(self) -> str:
+        """Format the stream preview content per current mode."""
+        if self._stream_mode == "full":
+            return "  " + self._stream_buffer.replace("\n", "\n  ")
+        # rolling
+        display = self._stream_lines[-self._stream_max_lines:]
+        if not display:
+            return ""
+        return "  " + "\n  ".join(display)
 
     def _refresh(self) -> None:
         if self._live is not None:
@@ -201,6 +233,35 @@ class RichReporter(Reporter):
         if self._live is not None:
             self._live.stop()
             self._live = None
+
+    # Streaming preview implementation
+    def stream_open(self, title: str, mode: str = "rolling", max_lines: int = 5) -> None:
+        self._stream_title = title
+        self._stream_mode = mode
+        self._stream_max_lines = max_lines
+        self._stream_buffer = ""
+        self._stream_lines = []
+        self._stream_active = True
+        self._refresh()
+
+    def stream_chunk(self, text: str) -> None:
+        if not self._stream_active:
+            return
+        if self._stream_mode == "full":
+            self._stream_buffer += text
+        else:
+            # rolling — split incoming text on newlines, append to line buffer
+            pending = (self._stream_lines.pop() if self._stream_lines else "") + text
+            *complete, partial = pending.split("\n")
+            self._stream_lines.extend(complete)
+            self._stream_lines.append(partial)
+        self._refresh()
+
+    def stream_close(self) -> None:
+        self._stream_active = False
+        self._stream_buffer = ""
+        self._stream_lines = []
+        self._refresh()
 
 
 def make_reporter(verbosity: int = 1) -> Reporter:

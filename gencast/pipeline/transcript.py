@@ -115,6 +115,12 @@ def run_transcript_stage(
         messages = build_cached_messages(
             provider=transcript_provider, prefix=prefix, suffix=suffix,
         )
+        if reporter is not None:
+            reporter.stream_open(
+                title=f"transcript segment {seg_index + 1}/{len(outline.segments)}",
+                mode="rolling",
+                max_lines=5,
+            )
         response = chat_completion(
             provider=transcript_provider,
             model=transcript_model,
@@ -123,7 +129,10 @@ def run_transcript_stage(
             max_tokens=5000,
             cost_meter=cost_meter,
             stage="transcript",
+            on_chunk=(reporter.stream_chunk if reporter is not None else None),
         )
+        if reporter is not None:
+            reporter.stream_close()
 
         if reporter is not None:
             try:
