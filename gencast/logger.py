@@ -11,9 +11,7 @@ from typing import Optional
 try:
     from rich.console import Console, Group
     from rich.live import Live
-    from rich.progress import (
-        BarColumn, Progress, TextColumn, TimeElapsedColumn, TimeRemainingColumn,
-    )
+    from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
     from rich.text import Text
     RICH_AVAILABLE = True
 except ImportError:
@@ -167,8 +165,6 @@ class RichReporter(Reporter):
             BarColumn(),
             TextColumn("{task.completed}/{task.total}"),
             TimeElapsedColumn(),
-            TextColumn("ETA"),
-            TimeRemainingColumn(),
             console=self._console,
         )
         self._live = Live(self._render(), console=self._console, refresh_per_second=10)
