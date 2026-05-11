@@ -2,10 +2,25 @@
 
 from __future__ import annotations
 
+import datetime as _dt
+import os
+import secrets
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from gencast.cost import CostMeter
+
+
+def new_session_id() -> str:
+    """Generate a unique-enough session ID for tracking a single `gencast generate` run."""
+    return f"{_dt.datetime.now():%Y%m%d-%H%M%S}-{secrets.token_hex(3)}"
+
+
+def session_log_path(session_id: str) -> Path:
+    """Where the session log lives. Honours XDG_CACHE_HOME."""
+    base = Path(os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache"))
+    return base / "gencast" / "sessions" / f"{session_id}.log"
 from gencast.notebook import Notebook, ResolvedNotebook, resolve_notebook
 from gencast.pipeline.extract import extract_sources
 from gencast.pipeline.outline import Outline, run_outline_stage
@@ -118,6 +133,23 @@ def get_default_tts_backend(state: "PodcastState") -> "TTSBackend":
 def run_pipeline(notebook: "Notebook", *, reporter: "Reporter | None" = None) -> "PodcastState":
     """Full pipeline through packaging. Returns the populated state."""
     import asyncio
+
+    # Open a session log file under ~/.cache/gencast/sessions/<id>.log and
+    # tee all reporter events to it.
+    session_id = new_session_id()
+    log_path = session_log_path(session_id)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text(
+        f"# gencast session {session_id}\n"
+        f"# started: {_dt.datetime.now().isoformat()}\n"
+        f"# notebook: {notebook.title}\n"
+        f"# resolved: speaker={notebook.speaker_profile or '(default)'} "
+        f"episode={notebook.episode_profile or '(default)'} "
+        f"room={notebook.room_profile or '(default)'}\n"
+    )
+    if reporter is not None:
+        reporter.set_log_sink(log_path)
+        reporter.info(f"session: {session_id}  log: {log_path}")
 
     state = run_through_transcript(notebook, reporter=reporter)
     backend = get_default_tts_backend(state)

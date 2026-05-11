@@ -296,6 +296,50 @@ def estimate(notebook_path: Path | None, as_json: bool, no_suggestions: bool,
     click.echo(format_table(est))
 
 
+@cli.group("sessions")
+def sessions_group() -> None:
+    """List + inspect saved gencast generation sessions (~/.cache/gencast/sessions/)."""
+
+
+def _sessions_dir() -> Path:
+    import os
+    base = Path(os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache"))
+    return base / "gencast" / "sessions"
+
+
+@sessions_group.command("list")
+@click.option("-n", "limit", default=20, type=int, help="How many recent sessions to show (default 20).")
+def sessions_list(limit: int) -> None:
+    """List recent generation sessions, most recent first."""
+    d = _sessions_dir()
+    if not d.exists():
+        click.echo("No sessions yet.")
+        return
+    logs = sorted(d.glob("*.log"), key=lambda p: p.stat().st_mtime, reverse=True)[:limit]
+    if not logs:
+        click.echo("No sessions yet.")
+        return
+    for p in logs:
+        # Try to extract notebook title from the header
+        try:
+            head = p.read_text().splitlines()[:5]
+            title_line = next((l for l in head if l.startswith("# notebook: ")), "")
+            title = title_line.removeprefix("# notebook: ") if title_line else "(unknown)"
+        except Exception:
+            title = "(unreadable)"
+        click.echo(f"  {p.stem}  {title}")
+
+
+@sessions_group.command("show")
+@click.argument("session_id")
+def sessions_show(session_id: str) -> None:
+    """Print a saved session log."""
+    p = _sessions_dir() / f"{session_id}.log"
+    if not p.exists():
+        raise click.ClickException(f"No session with ID {session_id!r} at {p}")
+    click.echo(p.read_text())
+
+
 @cli.group("cache")
 def cache_group() -> None:
     """Inspect and clear gencast caches."""

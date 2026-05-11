@@ -5,12 +5,15 @@ from __future__ import annotations
 import sys
 import time
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Optional
 
 try:
     from rich.console import Console, Group
     from rich.live import Live
-    from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
+    from rich.progress import (
+        BarColumn, Progress, TextColumn, TimeElapsedColumn, TimeRemainingColumn,
+    )
     from rich.text import Text
     RICH_AVAILABLE = True
 except ImportError:
@@ -43,6 +46,21 @@ class Reporter(ABC):
 
     @abstractmethod
     def error(self, msg: str) -> None: ...
+
+    # Optional log sink — when set, every reporter event is also appended to
+    # this path. Used for session log persistence.
+    def set_log_sink(self, path: Path) -> None:
+        self._log_sink_path: Path | None = path
+
+    def _sink(self, line: str) -> None:
+        path = getattr(self, "_log_sink_path", None)
+        if path is None:
+            return
+        try:
+            with open(path, "a") as f:
+                f.write(line + "\n")
+        except Exception:
+            pass  # logging shouldn't crash the pipeline
 
     # Streaming preview API — no-ops in non-TTY contexts.
     def stream_open(self, title: str, mode: str = "rolling", max_lines: int = 5) -> None:
@@ -77,8 +95,10 @@ class PlainReporter(Reporter):
         return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
     def _emit(self, level: str, msg: str) -> None:
-        sys.stderr.write(f"{self._ts()} [{level}] {msg}\n")
+        line = f"{self._ts()} [{level}] {msg}"
+        sys.stderr.write(line + "\n")
         sys.stderr.flush()
+        self._sink(line)
 
     def stage_start(self, n: int, total: int, name: str, total_items: int | None = None) -> None:
         if self.verbosity >= 1:
@@ -147,6 +167,8 @@ class RichReporter(Reporter):
             BarColumn(),
             TextColumn("{task.completed}/{task.total}"),
             TimeElapsedColumn(),
+            TextColumn("ETA"),
+            TimeRemainingColumn(),
             console=self._console,
         )
         self._live = Live(self._render(), console=self._console, refresh_per_second=10)
@@ -195,10 +217,13 @@ class RichReporter(Reporter):
                 stage=f"{n}/{total}",
             )
         self._refresh()
+        self._sink(f"[stage_start] {n}/{total} {name}"
+                   + (f" ({total_items} items)" if total_items else ""))
 
     def stage_activity(self, line: str) -> None:
         self._latest_activity = line
         self._refresh()
+        self._sink(f"[stage_activity] {line}")
 
     def stage_advance(self, items: int = 1) -> None:
         self._items_done += items
@@ -214,19 +239,23 @@ class RichReporter(Reporter):
     def info(self, msg: str) -> None:
         if self.verbosity >= 1:
             self._info_buffer.append(f"[INFO] {msg}")
+        self._sink(f"[INFO] {msg}")
 
     def debug(self, msg: str) -> None:
         # debug() only emits at full debug level (3)
         if self.verbosity >= 3:
             self._info_buffer.append(f"[DEBUG] {msg}")
+        self._sink(f"[DEBUG] {msg}")
 
     def warn(self, msg: str) -> None:
         if self.verbosity >= 0:
             self._info_buffer.append(f"[WARN] {msg}")
+        self._sink(f"[WARN] {msg}")
 
     def error(self, msg: str) -> None:
         # Errors always emit regardless of verbosity
         self._info_buffer.append(f"[ERROR] {msg}")
+        self._sink(f"[ERROR] {msg}")
 
     def close(self) -> None:
         """Tear down the Live display. Call at end of pipeline run."""
