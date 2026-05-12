@@ -15,33 +15,47 @@ Log a gencast bug as a GitHub issue on `cadrianmae/gencast`. This skill is for t
 /gencast:bug estimate --rates-only --json prints empty dict for openai when ANTHROPIC_API_KEY missing
 ```
 
-## Prerequisites
+## Prerequisites (injected at skill-load)
 
-- `gh` CLI authenticated against `cadrianmae/gencast`. Verify with: !`gh auth status 2>&1 | grep -E "Logged in|Token" | head -1 || echo "MISSING — run: gh auth login"`
-- Installed gencast version (so the bug can be tagged accurately): !`gencast --version 2>/dev/null || echo "(not installed — bug-report still works but version field will be 'unknown')"`
+`gh` CLI authenticated against `cadrianmae/gencast`: !`gh auth status 2>&1 | grep -E "Logged in|Token" | head -1 || echo "MISSING — run: gh auth login"`
+
+Installed gencast version: !`gencast --version 2>/dev/null || echo "(not installed — bug-report still works but version field will be 'unknown')"`
+
+Available `component:*` labels on the repo (pick one for the issue):
+
+```!
+gh label list --repo cadrianmae/gencast --search "component:" --json name --jq '.[].name' 2>/dev/null | sed 's/^/  - /' || echo "  (gh unavailable — skip the component label and let the user add later)"
+```
 
 ## Workflow
 
 1. Ask 1–2 clarifying questions if the description is unclear:
    - What were the steps to reproduce?
    - What was expected vs what actually happened?
-2. Determine which gencast component is affected — infer from conversation context, the description, or ask. Common components: `cli`, `pipeline:outline`, `pipeline:transcript`, `pipeline:audio`, `pipeline:estimate`, `tts`, `llm`, `profiles`, `plugin`, `docs`.
+2. Pick a `component:*` label from the list above. Match the bug to the component most directly responsible. If unsure, ask the user; if still unsure, file without a component label and note it in the body for triage.
 3. Capture the installed gencast version (the prereq check above).
 4. Compose the issue title and body using the template below.
-5. File with `gh issue create` against `cadrianmae/gencast` with labels `bug` + `component:<name>` + `version:<x.y.z>`.
+5. File with `gh issue create` against `cadrianmae/gencast`. Use the resilient command from the next section so a missing label does not fail the whole filing.
 6. Reply with the issue URL and return to the user's prior work.
 
-## Issue creation
+## Issue creation (resilient — missing labels do not fail)
 
 ```bash
-gh issue create \
+url=$(gh issue create \
   --repo cadrianmae/gencast \
   --title "<concise bug title>" \
   --body "<issue body>" \
   --label bug \
-  --label "component:<name>" \
-  --label "version:<x.y.z>"
+  --label "<component:name>" 2>&1) || \
+url=$(gh issue create \
+  --repo cadrianmae/gencast \
+  --title "<concise bug title>" \
+  --body "<issue body>" \
+  --label bug)
+echo "$url"
 ```
+
+The fallback drops the component label and retries; the version field stays in the body's Environment section so version context never gets lost.
 
 ### Body template
 
@@ -62,7 +76,7 @@ gh issue create \
 - Profile (if applicable): `<speaker/episode/room name>`
 
 ---
-Component: `<component>`
+Component: `<component>` (or "untriaged" if unknown)
 Date: <YYYY-MM-DD>
 ```
 
@@ -79,3 +93,4 @@ Then return focus to whatever the user was doing before this command.
 - Do not attempt to fix the bug in the same session — this skill is for logging.
 - Do not file duplicates without checking: search first via `gh issue list --repo cadrianmae/gencast --search "<keywords>"` if the description sounds familiar.
 - Do not attach API keys, output dirs containing real podcasts, or other private data to the issue body.
+- Do not invent component labels not in the injected list — file without a label and let triage assign one.

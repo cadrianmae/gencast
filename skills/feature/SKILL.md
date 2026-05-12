@@ -15,32 +15,53 @@ Log a gencast enhancement as a GitHub issue on `cadrianmae/gencast`. For trackin
 /gencast:feature add --segments X,Y flag to gencast generate so review-transcript can auto-regenerate flagged segments
 ```
 
-## Prerequisites
+## Prerequisites (injected at skill-load)
 
-- `gh` CLI authenticated against `cadrianmae/gencast`. Verify with: !`gh auth status 2>&1 | grep -E "Logged in|Token" | head -1 || echo "MISSING — run: gh auth login"`
-- Installed gencast version (helps determine which release the feature targets): !`gencast --version 2>/dev/null || echo "(not installed — request still works but no installed-version context)"`
+`gh` CLI authenticated against `cadrianmae/gencast`: !`gh auth status 2>&1 | grep -E "Logged in|Token" | head -1 || echo "MISSING — run: gh auth login"`
+
+Installed gencast version: !`gencast --version 2>/dev/null || echo "(not installed — request still works but no installed-version context)"`
+
+Available `component:*` labels on the repo (pick one for the request):
+
+```!
+gh label list --repo cadrianmae/gencast --search "component:" --json name --jq '.[].name' 2>/dev/null | sed 's/^/  - /' || echo "  (gh unavailable — skip the component label and let the user add later)"
+```
+
+Open enhancements (avoid filing duplicates):
+
+```!
+gh issue list --repo cadrianmae/gencast --label enhancement --state open --limit 20 --json number,title --jq '.[] | "  - #\(.number) \(.title)"' 2>/dev/null || echo "  (gh unavailable — skip duplicate check)"
+```
 
 ## Workflow
 
 1. Ask 1–2 clarifying questions if the request is unclear:
    - What problem does this solve? (the *why*, not just the *what*)
    - What's the concrete user-visible change? (CLI flag, profile field, output format, etc.)
-2. Determine which gencast area is affected. Common: `cli`, `pipeline:outline`, `pipeline:transcript`, `pipeline:audio`, `pipeline:estimate`, `tts`, `llm`, `profiles`, `plugin`, `docs`.
-3. Check whether this overlaps with anything in `docs/future-work.md` or open issues — if yes, comment on the existing item rather than filing a duplicate.
-4. Compose the issue title and body using the template below.
-5. File with `gh issue create` against `cadrianmae/gencast` with labels `enhancement` + `component:<name>` + (optional) `target:v1.X` if the user has a specific release in mind.
+2. Check the open-enhancements list above. If something matches, comment on the existing issue instead of filing a new one.
+3. Pick a `component:*` label from the injected list. If unsure, ask the user; if still unsure, file without a component label and note it in the body.
+4. Compose the issue title and body using the template below. Title format `[<area>] <concise>` works well (matches existing issue style — see #3, #4, #5 for `[slides A]` examples).
+5. File with `gh issue create` against `cadrianmae/gencast`. Use the resilient command from the next section so a missing label does not fail the whole filing.
 6. Reply with the issue URL and return to the user's prior work.
 
-## Issue creation
+## Issue creation (resilient — missing labels do not fail)
 
 ```bash
-gh issue create \
+url=$(gh issue create \
   --repo cadrianmae/gencast \
-  --title "<concise feature title>" \
+  --title "<[area] concise feature title>" \
   --body "<issue body>" \
   --label enhancement \
-  --label "component:<name>"
+  --label "<component:name>" 2>&1) || \
+url=$(gh issue create \
+  --repo cadrianmae/gencast \
+  --title "<[area] concise feature title>" \
+  --body "<issue body>" \
+  --label enhancement)
+echo "$url"
 ```
+
+The fallback drops the component label and retries.
 
 ### Body template
 
@@ -55,7 +76,10 @@ gh issue create \
 <from clarifying questions, or 'Not specified' if user skipped>
 
 ## Component(s)
-`<component>`
+`<component>` (or "untriaged" if unknown)
+
+## Depends on / stacks with
+<other issue numbers if part of a series like [slides A/B/C]>
 
 ---
 Suggested by: <user> on <YYYY-MM-DD>
@@ -73,5 +97,6 @@ Then return focus to whatever the user was doing before this command.
 ## What to NOT do
 
 - Do not design or scope the feature in the same session — this skill is for capturing the idea while it's fresh.
-- Do not file duplicates: check `docs/future-work.md` AND `gh issue list --repo cadrianmae/gencast --label enhancement --search "<keywords>"` first.
 - Do not over-specify implementation details. The request captures the *what + why*; design happens later via brainstorming.
+- Do not invent component labels not in the injected list — file without a label and let triage assign one.
+- Do not file follow-on issues without referencing the parent (use the "Depends on" section).
